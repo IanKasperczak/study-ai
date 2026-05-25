@@ -1,0 +1,137 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Next.js
+.next/
+frontend/.next/
+out/
+frontend/out/
+build/
+frontend/build/
+dist/
+frontend/dist/
+next-env.d.ts
+
+# Package managers
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+.yarn/
+!.yarn/patches/
+!.yarn/plugins/
+!.yarn/releases/
+!.yarn/sdks/
+!.yarn/versions/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+.env/
+backend/venv/
+backend/.venv/
+
+# Python cache and build output
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.coverage
+htmlcov/
+site/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+build/
+dist/
+
+# FastAPI / ASGI runtime
+*.pid
+*.sock
+uvicorn*.log
+gunicorn*.log
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+
+# Local uploads, generated study data, and temporary processing files
+uploads/
+backend/uploads/
+storage/
+backend/storage/
+tmp/
+temp/
+backend/tmp/
+backend/temp/
+transcripts/
+backend/transcripts/
+processed/
+backend/processed/
+exports/
+backend/exports/
+
+# Local embeddings and vector databases
+chroma/
+chromadb/
+vectorstore/
+vector_db/
+embeddings/
+backend/chroma/
+backend/chromadb/
+backend/vectorstore/
+backend/vector_db/
+backend/embeddings/
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Media/audio extraction artifacts
+*.wav
+*.mp3
+*.m4a
+*.aac
+*.flac
+*.webm
+*.tmp
+*.part
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# Test and coverage output
+coverage/
+frontend/coverage/
+backend/coverage/
+playwright-report/
+test-results/
+
+# Docker/local infra
+.docker/
+docker-compose.override.yml
+
