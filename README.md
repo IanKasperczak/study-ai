@@ -1,23 +1,23 @@
 # Project Study IA
 
-Aplicacion de escritorio/web para estudiar con ayuda de inteligencia artificial. El objetivo es permitir que una persona seleccione una carpeta local con materiales de estudio, procese automaticamente documentos y videos, organice el contenido por temas y use herramientas de IA para aprender mejor.
+Aplicacion web/de escritorio para estudiar con ayuda de inteligencia artificial. El MVP permite cargar archivos locales de estudio, extraer texto de documentos, dividir el contenido en chunks, generar temas automaticamente y estudiar con resumenes, explicaciones simples, chat contextual y temporizador Pomodoro.
 
-> Estado actual: proyecto en etapa inicial. Este README define la vision, la arquitectura esperada y la estrategia de desarrollo del MVP.
+## Estado Del Proyecto
 
-## Descripcion
+MVP base implementado:
 
-Project Study IA busca transformar archivos de estudio dispersos en una experiencia guiada de aprendizaje. La aplicacion analizara PDFs, documentos Word, presentaciones, archivos de texto y videos para extraer contenido, detectar temas importantes y construir un sistema de consulta contextual basado en los documentos cargados.
+- Frontend separado con Next.js, TypeScript, TailwindCSS y Framer Motion.
+- Backend separado con FastAPI.
+- Procesamiento inicial de PDF, DOCX, TXT y MD.
+- Almacenamiento local temporal en `backend/storage`.
+- Generacion heuristica de temas.
+- RAG basico con busqueda lexical sobre chunks locales.
+- Servicios preparados para usar OpenAI si se configura `OPENAI_API_KEY`.
+- Pomodoro funcional con estadisticas simples en `localStorage`.
 
-La experiencia estara enfocada en:
+No incluye autenticacion ni base de datos SQL.
 
-- Importar materiales de estudio desde archivos o carpetas locales.
-- Extraer texto y transcripciones de distintos formatos.
-- Dividir el contenido automaticamente en temas.
-- Generar resumenes, explicaciones, preguntas, flashcards y quizzes.
-- Responder preguntas usando solamente el contenido cargado.
-- Acompanhar sesiones de estudio con un temporizador Pomodoro.
-
-## Stack Tecnologico
+## Stack
 
 ### Frontend
 
@@ -25,153 +25,221 @@ La experiencia estara enfocada en:
 - TypeScript
 - TailwindCSS
 - Framer Motion
-- UI moderna en modo oscuro
+- lucide-react
 
 ### Backend
 
 - Python
 - FastAPI
-- Servicios modulares para procesamiento, IA y RAG
+- Uvicorn
+- PyMuPDF
+- python-docx
+- OpenAI SDK preparado para integracion
 
-### Inteligencia Artificial
+### IA y RAG
 
-- OpenAI API
-- Whisper o equivalente para transcripcion de audio/video
-- Embeddings para busqueda semantica
+- OpenAI API opcional mediante `OPENAI_API_KEY`
+- RAG MVP con chunks locales y busqueda lexical
+- Preparado para evolucionar a embeddings + ChromaDB
 
-### Vector DB
-
-- ChromaDB
-
-### Procesamiento de archivos
-
-- PyMuPDF para PDF
-- python-docx para DOCX
-- python-pptx para PPTX
-- ffmpeg para extraccion de audio desde video
-- Procesamiento de TXT nativo
-
-## Arquitectura Planeada
+## Arquitectura
 
 ```text
 project-study-ia/
-|-- frontend/              # Aplicacion Next.js
-|-- backend/               # API FastAPI
+|-- frontend/
 |   |-- app/
-|   |   |-- api/           # Rutas HTTP
-|   |   |-- core/          # Configuracion general
-|   |   |-- services/      # OpenAI, Whisper, RAG
-|   |   |-- processors/    # PDF, DOCX, PPTX, TXT, video
-|   |   |-- models/        # Schemas y modelos internos
-|   |   `-- utils/         # Helpers compartidos
-|   `-- tests/
+|   |-- components/
+|   |-- lib/
+|   |-- package.json
+|   `-- tailwind.config.ts
+|-- backend/
+|   |-- app/
+|   |   |-- api/
+|   |   |-- core/
+|   |   |-- models/
+|   |   |-- processors/
+|   |   `-- services/
+|   |-- requirements.txt
+|   `-- .env.example
 |-- docs/
-|   `-- screenshots/       # Capturas futuras
-`-- README.md
+|   `-- screenshots/
+|-- README.md
+`-- .gitignore
 ```
 
-## Features Planeadas
+### Decisiones Importantes
 
-- Seleccion de archivos o carpeta local.
-- Soporte para PDF, DOCX, PPTX, TXT y MP4.
-- Extraccion automatica de texto.
-- Extraccion de audio y transcripcion de videos.
-- Deteccion de titulos, subtitulos y conceptos importantes.
-- Agrupacion automatica por temas.
-- Panel de temas seleccionables.
-- Herramientas de estudio por tema:
-  - resumen;
-  - explicacion simple;
-  - preguntas tipo examen;
-  - flashcards;
-  - mini quiz;
-  - explicacion paso a paso.
-- Chat contextual con RAG.
-- Busqueda vectorial con ChromaDB.
-- Respuestas basadas solamente en documentos cargados.
-- Temporizador Pomodoro flotante.
-- Estadisticas simples de tiempo estudiado.
-- Interfaz oscura inspirada en cielo nocturno, Notion, Obsidian y Linear.
+- El frontend no accede directamente al sistema de archivos. Usa inputs de archivo/carpeta del navegador y envia los documentos al backend.
+- El backend guarda datos temporales localmente en `backend/storage`, que esta excluido de Git.
+- El RAG inicial es lexical para mantener el MVP simple y ejecutable sin depender de embeddings.
+- La capa `ai_service.py` centraliza OpenAI. Si no hay API key, devuelve respuestas extractivas basadas en el contexto.
+- Los procesadores de documentos estan separados por formato para que sea facil sumar PPTX, video, Whisper y ffmpeg despues.
+
+## Features Del MVP
+
+- Subida de multiples archivos.
+- Subida de carpeta desde navegador compatible.
+- Extraccion de texto desde PDF.
+- Extraccion de texto desde DOCX.
+- Extraccion de texto desde TXT/MD.
+- Chunking de contenido.
+- Generacion automatica de temas.
+- Sidebar con temas seleccionables.
+- Accion para generar resumen.
+- Accion para generar explicacion simple.
+- Chat contextual basado en documentos cargados.
+- Pomodoro flotante con modo foco/pausa y sonido opcional.
 
 ## Roadmap
 
-### Fase 1: MVP Funcional
+### Fase 1: MVP Base
 
-- Crear estructura base del monorepo.
-- Implementar API FastAPI.
-- Implementar interfaz Next.js.
-- Permitir carga de archivos.
-- Extraer texto de PDF, DOCX, PPTX y TXT.
-- Generar temas iniciales con IA.
-- Crear panel de temas.
-- Agregar herramientas basicas de estudio.
-- Implementar chat contextual con RAG local.
+- [x] Crear monorepo frontend/backend.
+- [x] Implementar UI principal oscura.
+- [x] Implementar carga de archivos.
+- [x] Procesar PDF, DOCX y texto.
+- [x] Crear chunking y temas automaticos.
+- [x] Crear resumen, explicacion simple y chat contextual.
+- [x] Agregar Pomodoro.
 
-### Fase 2: Videos y Transcripcion
+### Fase 2: RAG Real
 
-- Integrar ffmpeg para extraer audio.
-- Integrar Whisper o servicio equivalente.
-- Guardar transcripciones junto al material procesado.
-- Incluir transcripciones en el sistema RAG.
+- [ ] Agregar embeddings.
+- [ ] Integrar ChromaDB.
+- [ ] Mejorar ranking semantico.
+- [ ] Agregar citas mas precisas por documento y pagina.
 
-### Fase 3: Experiencia de Estudio
+### Fase 3: Mas Formatos
 
-- Mejorar seleccion y combinacion de temas.
-- Agregar flashcards interactivas.
-- Agregar mini quizzes con correccion.
-- Agregar historial de sesiones.
-- Agregar estadisticas de Pomodoro.
+- [ ] Procesar PPTX.
+- [ ] Procesar MP4/video.
+- [ ] Extraer audio con ffmpeg.
+- [ ] Transcribir con Whisper o equivalente.
 
-### Fase 4: Calidad y Producto
+### Fase 4: Experiencia De Estudio
 
-- Persistencia de proyectos de estudio.
-- Mejor manejo de errores.
-- Tests unitarios e integracion.
-- Optimizacion de embeddings.
-- Empaquetado como aplicacion de escritorio si se decide usar Electron o Tauri.
+- [ ] Flashcards.
+- [ ] Preguntas tipo examen.
+- [ ] Mini quiz.
+- [ ] Explicacion paso a paso.
+- [ ] Historial de sesiones.
+- [ ] Estadisticas mas completas.
 
 ## Screenshots
 
-> Capturas pendientes. Estos placeholders se reemplazaran cuando exista el MVP visual.
+Placeholders para futuras capturas:
 
-| Vista | Placeholder |
+| Vista | Archivo |
 | --- | --- |
 | Dashboard principal | `docs/screenshots/dashboard.png` |
 | Panel de temas | `docs/screenshots/topics-panel.png` |
 | Chat contextual | `docs/screenshots/context-chat.png` |
 | Pomodoro flotante | `docs/screenshots/pomodoro.png` |
 
-## Estrategia de Ramas
+## Instalacion Local
 
-La estrategia sera simple y pensada para desarrollo individual.
+### Requisitos
+
+- Node.js 20+
+- Python 3.11+
+- Git
+
+### Backend
+
+```bash
+cd backend
+python -m venv .venv
+```
+
+En Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+En macOS/Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+Instalar dependencias y correr API:
+
+```bash
+pip install -r requirements.txt
+copy .env.example .env
+uvicorn app.main:app --reload
+```
+
+La API queda disponible en:
+
+```text
+http://localhost:8000
+```
+
+Health check:
+
+```text
+http://localhost:8000/health
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+copy .env.example .env.local
+npm run dev
+```
+
+La app queda disponible en:
+
+```text
+http://localhost:3000
+```
+
+## Variables De Entorno
+
+### Backend
+
+```env
+PROJECT_NAME=Project Study IA
+API_PREFIX=/api
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+STORAGE_DIR=./storage
+UPLOAD_DIR=./storage/uploads
+PROJECTS_DIR=./storage/projects
+OPENAI_API_KEY=
+OPENAI_CHAT_MODEL=gpt-4o-mini
+```
+
+### Frontend
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+```
+
+## Endpoints Principales
+
+- `POST /api/uploads`: sube archivos y crea un proyecto temporal.
+- `GET /api/study/{project_id}/topics`: lista temas detectados.
+- `POST /api/study/summary`: genera resumen.
+- `POST /api/study/simple-explanation`: genera explicacion simple.
+- `POST /api/chat`: pregunta al chat contextual.
+
+## Estrategia De Ramas
 
 ### `main`
 
-Rama estable del proyecto. Debe representar una version que funciona o que esta lista para mostrar.
-
-Usos recomendados:
-
-- guardar versiones estables;
-- crear releases;
-- mantener una base limpia del proyecto.
-
-No se trabaja directamente sobre `main`, salvo cambios muy pequenos de documentacion o configuracion.
+Rama estable. Debe representar una version que funciona y se puede mostrar.
 
 ### `develop`
 
-Rama principal de desarrollo. Aca se integran las funcionalidades antes de pasarlas a `main`.
-
-Usos recomendados:
-
-- probar el MVP completo;
-- integrar features terminadas;
-- detectar conflictos antes de publicar una version estable.
-
-Cuando `develop` esta estable, se mergea hacia `main`.
+Rama de integracion. Aca se juntan features terminadas antes de pasar a `main`.
 
 ### `feature/*`
 
-Ramas cortas para trabajar una funcionalidad concreta.
+Ramas cortas para funcionalidades concretas.
 
 Ejemplos:
 
@@ -183,87 +251,30 @@ feature/pomodoro-timer
 feature/dark-ui
 ```
 
-Flujo recomendado:
-
-1. Crear la rama desde `develop`.
-2. Implementar una funcionalidad pequena y clara.
-3. Probar que funciona.
-4. Mergear a `develop`.
-5. Borrar la rama cuando ya no se necesite.
-
-Comandos habituales:
+Flujo simple:
 
 ```bash
 git checkout develop
-git pull
 git checkout -b feature/nombre-de-la-feature
 
-# trabajar, commitear y probar
+# trabajar y commitear
 
 git checkout develop
 git merge feature/nombre-de-la-feature
 git branch -d feature/nombre-de-la-feature
 ```
 
-Para publicar una version estable:
+Cuando `develop` este estable:
 
 ```bash
 git checkout main
 git merge develop
-git tag v0.1.0
 ```
 
-## Instalacion Futura
+## Principios
 
-> Los comandos definitivos pueden cambiar cuando se implemente la estructura real del proyecto.
-
-### Requisitos esperados
-
-- Node.js 20+
-- Python 3.11+
-- ffmpeg instalado en el sistema
-- Cuenta y API key de OpenAI
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-```
-
-### Variables de entorno
-
-Crear archivos `.env` a partir de los ejemplos futuros:
-
-```bash
-cp frontend/.env.example frontend/.env
-cp backend/.env.example backend/.env
-```
-
-Variables esperadas:
-
-```env
-OPENAI_API_KEY=your_openai_api_key
-CHROMA_DB_PATH=./storage/chroma
-UPLOAD_DIR=./storage/uploads
-```
-
-## Principios del Proyecto
-
-- Codigo limpio y modular.
-- MVP funcional antes que complejidad innecesaria.
-- Separacion clara entre frontend, backend, procesamiento, IA y RAG.
-- Experiencia de usuario cuidada desde el inicio.
-- Respuestas de IA fundamentadas solo en los documentos cargados.
-- Datos locales sensibles fuera del control de versiones.
+- Codigo modular y legible.
+- MVP funcional antes de optimizaciones.
+- Separacion clara entre UI, API, procesamiento, IA y RAG.
+- Datos locales fuera de Git.
+- Respuestas del chat basadas solamente en documentos cargados.
