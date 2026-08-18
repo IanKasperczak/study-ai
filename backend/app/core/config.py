@@ -17,6 +17,16 @@ def _split_csv(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _resolve_env_path(value: str | None, default: Path) -> Path:
+    """Resolve paths relative to the backend directory, not the process CWD."""
+    if not value:
+        return default.resolve()
+    path = Path(value)
+    if not path.is_absolute():
+        path = BACKEND_DIR / path
+    return path.resolve()
+
+
 @dataclass(frozen=True)
 class Settings:
     project_name: str
@@ -27,13 +37,18 @@ class Settings:
     projects_dir: Path
     openai_api_key: str
     openai_chat_model: str
+    openai_base_url: str
+    ollama_base_url: str
+    ollama_model: str
+    ai_provider: str
+    ai_timeout_seconds: float
 
 
 @lru_cache
 def get_settings() -> Settings:
-    storage_dir = Path(os.getenv("STORAGE_DIR", BACKEND_DIR / "storage")).resolve()
-    upload_dir = Path(os.getenv("UPLOAD_DIR", storage_dir / "uploads")).resolve()
-    projects_dir = Path(os.getenv("PROJECTS_DIR", storage_dir / "projects")).resolve()
+    storage_dir = _resolve_env_path(os.getenv("STORAGE_DIR"), BACKEND_DIR / "storage")
+    upload_dir = _resolve_env_path(os.getenv("UPLOAD_DIR"), storage_dir / "uploads")
+    projects_dir = _resolve_env_path(os.getenv("PROJECTS_DIR"), storage_dir / "projects")
 
     # The MVP keeps state local and temporary, so these folders are created on boot.
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -43,11 +58,16 @@ def get_settings() -> Settings:
         project_name=os.getenv("PROJECT_NAME", "Project Study IA"),
         api_prefix=os.getenv("API_PREFIX", "/api"),
         cors_origins=_split_csv(
-            os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000")
+            os.getenv("CORS_ORIGINS", "*")
         ),
         storage_dir=storage_dir,
         upload_dir=upload_dir,
         projects_dir=projects_dir,
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+        openai_base_url=os.getenv("OPENAI_BASE_URL", ""),
+        ollama_base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+        ollama_model=os.getenv("OLLAMA_MODEL", "llama3.2"),
+        ai_provider=os.getenv("AI_PROVIDER", "").lower(),
+        ai_timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "300") or 300),
     )

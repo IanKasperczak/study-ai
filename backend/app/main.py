@@ -12,10 +12,12 @@ app = FastAPI(
     description="MVP API for local study document processing and contextual AI tools.",
 )
 
+# Local single-user MVP without auth/cookies, so CORS is wide open. Any
+# origin/port can call the API and preflight always succeeds.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

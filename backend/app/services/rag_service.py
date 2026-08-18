@@ -39,10 +39,28 @@ class RAGService:
 
         return chunks if limit == 0 else chunks[:limit]
 
-    def build_context(self, chunks: list[dict]) -> str:
-        return "\n\n".join(
-            f"Source: {chunk['source']} | Chunk: {chunk['id']}\n{chunk['text']}" for chunk in chunks
-        )
+    def build_context(self, chunks: list[dict], max_chars: int = 8000) -> str:
+        """Join chunks into a single context block, capped so small local models
+        do not stall processing an oversized prompt (fewer tokens = faster)."""
+        parts: list[str] = []
+        budget = max_chars
+
+        for chunk in chunks:
+            header = f"Source: {chunk['source']} | Chunk: {chunk['id']}\n"
+            block = f"{header}{chunk['text']}"
+
+            if len(block) <= budget:
+                parts.append(block)
+                budget -= len(block)
+            else:
+                if budget > len(header) + 120:
+                    parts.append(f"{header}{chunk['text'][: max(0, budget - len(header))]}")
+                break
+
+            if budget <= 0:
+                break
+
+        return "\n\n".join(parts)
 
 
 def _terms(text: str) -> list[str]:

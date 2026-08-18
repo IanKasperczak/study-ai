@@ -39,6 +39,8 @@ No incluye autenticacion ni base de datos SQL.
 ### IA y RAG
 
 - OpenAI API opcional mediante `OPENAI_API_KEY`
+- Ollama local opcional mediante `AI_PROVIDER=ollama` y `OLLAMA_MODEL`
+- Otros proveedores OpenAI-compatibles via `OPENAI_BASE_URL`
 - RAG MVP con chunks locales y busqueda lexical
 - Preparado para evolucionar a embeddings + ChromaDB
 
@@ -88,7 +90,7 @@ project-study-ia/
 - Accion para generar resumen.
 - Accion para generar explicacion simple.
 - Chat contextual basado en documentos cargados.
-- Pomodoro flotante con modo foco/pausa y sonido opcional.
+- Pomodoro flotante, movible y redimensionable, con minimizar, modo foco/pausa, multiples tecnicas de estudio (Pomodoro, Foco profundo, Flow, Sprint, Micro) y sonido opcional.
 
 ## Roadmap
 
@@ -209,9 +211,15 @@ CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 STORAGE_DIR=./storage
 UPLOAD_DIR=./storage/uploads
 PROJECTS_DIR=./storage/projects
+AI_PROVIDER=
 OPENAI_API_KEY=
 OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_BASE_URL=
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3.2
 ```
+
+`AI_PROVIDER` acepta `openai`, `ollama` o vacio (auto-deteccion). Ollama expone una API OpenAI-compatible, asi que tambien funciona con cualquier masa que sirva `/v1`. Con `OPENAI_BASE_URL` se puede apuntar a otros proveedores compatibles (Groq, OpenRouter, etc.). Sin ningun proveedor configurado o activo, el backend responde en modo extractivo.
 
 ### Frontend
 
