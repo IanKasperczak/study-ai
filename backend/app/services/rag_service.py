@@ -32,10 +32,32 @@ class RAGService:
         chunks = project["chunks"]
         if topic_ids:
             selected_ids = set()
+            matched = False
+            topics = {topic["id"]: topic for topic in project["topics"]}
+            children: dict[str, list[str]] = {}
             for topic in project["topics"]:
-                if topic["id"] in topic_ids:
-                    selected_ids.update(topic["chunk_ids"])
-            chunks = [chunk for chunk in chunks if chunk["id"] in selected_ids]
+                parent = topic.get("parent_id")
+                if parent:
+                    children.setdefault(parent, []).append(topic["id"])
+
+            def collect(topic_id: str, visited: set[str]) -> None:
+                nonlocal matched
+                if topic_id in visited:
+                    return
+                visited.add(topic_id)
+                topic = topics.get(topic_id)
+                if topic is None:
+                    return
+                matched = True
+                selected_ids.update(topic.get("chunk_ids", []))
+                for child_id in children.get(topic_id, []):
+                    collect(child_id, visited)
+
+            for topic_id in topic_ids:
+                collect(topic_id, set())
+
+            if matched:
+                chunks = [chunk for chunk in chunks if chunk["id"] in selected_ids]
 
         return chunks if limit == 0 else chunks[:limit]
 
