@@ -14,7 +14,7 @@ async def chat_with_project(request: ChatRequest) -> ChatResponse:
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
 
-    matches = rag_service.search(
+    matches = await rag_service.search(
         project=project,
         query=request.message,
         topic_ids=request.topic_ids,

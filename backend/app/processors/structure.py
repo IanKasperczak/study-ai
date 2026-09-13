@@ -26,7 +26,7 @@ _WORD_NUMBERED = re.compile(
     r"^\s*(cap[ií]tulo|chapter|unidad|lecci[oó]n|secci[oó]n|parte|tema|t[oó]pico|m[oó]dulo)"
     r"[ \t]+(\d+|[ivxlcdmIVXLCDM]+)\b"
 )
-_CAPS_CANDIDATE = re.compile(r"^[\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ][\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ \-–—:·'’"]{2,63}$")
+_CAPS_CANDIDATE = re.compile(r"^[\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ][\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ \-–—:·'’”]{2,63}$")
 _SENTENCE_END = re.compile(r"[.!?]([\s\u2026\"'»)\]]*)$")
 _PAGE_MARKER = re.compile(
     r"^\s*(?:page|p[aá]g\.?|pag[- ]?[aá]gina|fol\.?)?[ \t]*\d{1,4}[ \t]*\d*$",

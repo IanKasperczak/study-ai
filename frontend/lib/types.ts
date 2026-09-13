@@ -1,21 +1,26 @@
-export type FileSummary = {
+export type DocumentFile = {
+  id: string;
   filename: string;
   content_type: string;
   character_count: number;
+  word_count: number;
   status: string;
+  error?: string | null;
 };
 
 export type Topic = {
   id: string;
   title: string;
   description: string;
-  keywords: string[];
+  parent_id?: string | null;
+  order: number;
+  document_id: string;
   chunk_ids: string[];
 };
 
 export type ProjectResponse = {
   project_id: string;
-  files: FileSummary[];
+  documents: DocumentFile[];
   topics: Topic[];
   total_chunks: number;
 };

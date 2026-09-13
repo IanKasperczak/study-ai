@@ -36,6 +36,7 @@ class Chunk(BaseModel):
     text: str
     order: int = 0
     start: int = 0
+    embedding: list[float] | None = None
 
 
 class ProjectResponse(BaseModel):

@@ -64,7 +64,7 @@ export default function HomePage() {
               <div className="grid gap-3 text-sm text-slate-300 sm:grid-cols-3">
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Archivos</p>
-                  <p className="mt-1 font-semibold text-white">{lastProject.files.length}</p>
+                  <p className="mt-1 font-semibold text-white">{lastProject.documents.length}</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Chunks</p>

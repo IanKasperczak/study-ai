@@ -57,6 +57,37 @@ class AIService:
             for index, topic in enumerate(tree.topics)
         ]
 
+    async def embed_texts(self, texts: list[str], input_type: str) -> list[list[float]] | None:
+        """Embed a batch of texts with the active provider's embedding model.
+
+        input_type is "query" for a search question or "passage" for a stored
+        chunk. NIM's asymmetric models (e5, bge) need this distinction to embed
+        queries and documents into a comparable space; other providers ignore it.
+        Returns None (never raises) when no provider is configured or the call
+        fails, so callers can fall back to lexical search.
+        """
+        if not texts:
+            return []
+
+        config = self._client_config()
+        if config is None or not config.get("embed_model"):
+            return None
+
+        try:
+            from openai import AsyncOpenAI
+
+            client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            extra_body = {"input_type": input_type} if config["provider"] == "nim" else None
+            response = await client.embeddings.create(
+                model=config["embed_model"],
+                input=texts,
+                extra_body=extra_body,
+                timeout=settings.ai_timeout_seconds,
+            )
+            return [item.embedding for item in response.data]
+        except Exception:
+            return None
+
     async def _complete(self, prompt: str, fallback: str, max_tokens: int) -> str:
         config = self._client_config()
         if config is None:
@@ -121,35 +152,56 @@ class AIService:
           endpoint at /v1). No API key required.
         - "openai": the official OpenAI API (or any OpenAI-compatible provider when
           OPENAI_BASE_URL is configured, e.g. Groq, OpenRouter, together.ai).
+        - "nim": NVIDIA NIM, hosted (build.nvidia.com/integrate.api.nvidia.com,
+          requires NVIDIA_API_KEY) or self-hosted (point NIM_BASE_URL at your own
+          NIM container; no key needed there). Also OpenAI-compatible.
         - "": auto-detect from the configured environment variables.
         """
         provider = settings.ai_provider or self._detect_provider()
 
         if provider == "ollama":
             return {
+                "provider": "ollama",
                 "api_key": "ollama",
                 "base_url": f"{settings.ollama_base_url.rstrip('/')}/v1",
                 "model": settings.ollama_model,
+                "embed_model": settings.ollama_embed_model,
+            }
+
+        if provider == "nim":
+            return {
+                "provider": "nim",
+                # Self-hosted NIM containers ignore the key but the OpenAI SDK
+                # still requires a non-empty string.
+                "api_key": settings.nim_api_key or "not-needed",
+                "base_url": settings.nim_base_url,
+                "model": settings.nim_model,
+                "embed_model": settings.nim_embed_model,
             }
 
         if provider == "openai":
             if not settings.openai_api_key:
                 return None
             return {
+                "provider": "openai",
                 "api_key": settings.openai_api_key,
                 "base_url": settings.openai_base_url or None,
                 "model": settings.openai_chat_model,
+                "embed_model": settings.openai_embed_model,
             }
 
         return None
 
     def _detect_provider(self) -> str:
         # Detection looks at the environment directly so that default values in
-        # settings (e.g. OLLAMA_MODEL=llama3.2) never enable a provider implicitly.
+        # settings (e.g. OLLAMA_MODEL=llama3.2, NIM_BASE_URL) never enable a
+        # provider implicitly.
         import os
 
         if os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_BASE_URL"):
             return "openai"
+        if os.getenv("NVIDIA_API_KEY") or os.getenv("NIM_API_KEY"):
+            return "nim"
         if os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_MODEL"):
             return "ollama"
         return ""

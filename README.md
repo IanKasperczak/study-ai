@@ -11,8 +11,8 @@ MVP base implementado:
 - Procesamiento inicial de PDF, DOCX, TXT y MD.
 - Almacenamiento local temporal en `backend/storage`.
 - Generacion heuristica de temas.
-- RAG basico con busqueda lexical sobre chunks locales.
-- Servicios preparados para usar OpenAI si se configura `OPENAI_API_KEY`.
+- RAG con busqueda semantica por embeddings (si el provider activo los soporta) y fallback automatico a busqueda lexical sobre chunks locales.
+- Servicios preparados para usar OpenAI, NVIDIA NIM u Ollama segun `AI_PROVIDER`.
 - Pomodoro funcional con estadisticas simples en `localStorage`.
 
 No incluye autenticacion ni base de datos SQL.
@@ -39,10 +39,12 @@ No incluye autenticacion ni base de datos SQL.
 ### IA y RAG
 
 - OpenAI API opcional mediante `OPENAI_API_KEY`
+- NVIDIA NIM opcional mediante `AI_PROVIDER=nim` y `NVIDIA_API_KEY` (hosteado o self-hosted)
 - Ollama local opcional mediante `AI_PROVIDER=ollama` y `OLLAMA_MODEL`
 - Otros proveedores OpenAI-compatibles via `OPENAI_BASE_URL`
-- RAG MVP con chunks locales y busqueda lexical
-- Preparado para evolucionar a embeddings + ChromaDB
+- RAG con embeddings por chunk (OpenAI, NVIDIA NIM u Ollama, segun el provider activo) y ranking por similitud coseno
+- Si no hay embeddings disponibles, cae automaticamente a busqueda lexical (nunca rompe el chat)
+- Preparado para evolucionar a un vector store dedicado (ChromaDB) si el volumen de documentos crece
 
 ## Arquitectura
 
@@ -106,9 +108,9 @@ project-study-ia/
 
 ### Fase 2: RAG Real
 
-- [ ] Agregar embeddings.
-- [ ] Integrar ChromaDB.
-- [ ] Mejorar ranking semantico.
+- [x] Agregar embeddings (por chunk, al subir el documento).
+- [x] Mejorar ranking semantico (similitud coseno, con fallback lexical).
+- [ ] Integrar ChromaDB (hoy la similitud se calcula en memoria; migrar cuando el volumen de chunks lo justifique).
 - [ ] Agregar citas mas precisas por documento y pagina.
 
 ### Fase 3: Mas Formatos
@@ -217,9 +219,19 @@ OPENAI_CHAT_MODEL=gpt-4o-mini
 OPENAI_BASE_URL=
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
+NVIDIA_API_KEY=
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NIM_MODEL=meta/llama-3.1-8b-instruct
+NIM_EMBED_MODEL=nvidia/nv-embedqa-e5-v5
+OPENAI_EMBED_MODEL=text-embedding-3-small
+OLLAMA_EMBED_MODEL=nomic-embed-text
 ```
 
-`AI_PROVIDER` acepta `openai`, `ollama` o vacio (auto-deteccion). Ollama expone una API OpenAI-compatible, asi que tambien funciona con cualquier masa que sirva `/v1`. Con `OPENAI_BASE_URL` se puede apuntar a otros proveedores compatibles (Groq, OpenRouter, etc.). Sin ningun proveedor configurado o activo, el backend responde en modo extractivo.
+`AI_PROVIDER` acepta `openai`, `nim`, `ollama` o vacio (auto-deteccion: OpenAI, despues NIM, despues Ollama, segun que variables esten seteadas). Ollama expone una API OpenAI-compatible, asi que tambien funciona con cualquier motor que sirva `/v1`. Con `OPENAI_BASE_URL` se puede apuntar a otros proveedores compatibles (Groq, OpenRouter, etc.).
+
+Para usar **NVIDIA NIM** en vez de Ollama local: seteá `AI_PROVIDER=nim` y `NVIDIA_API_KEY` con una key generada en [build.nvidia.com](https://build.nvidia.com); `NIM_MODEL` acepta cualquier modelo del catalogo NIM (ej. `meta/llama-3.1-8b-instruct`, `mistralai/mixtral-8x7b-instruct-v0.1`). Si corres tu propio NIM self-hosted (container Docker de NVIDIA), apunta `NIM_BASE_URL` a ese endpoint y dejá `NVIDIA_API_KEY` vacio. Sin ningun proveedor configurado o activo, el backend responde en modo extractivo.
+
+El mismo provider activo (`openai`, `nim` u `ollama`) se usa tambien para generar embeddings de cada chunk al subir un documento (`NIM_EMBED_MODEL`, `OPENAI_EMBED_MODEL`, `OLLAMA_EMBED_MODEL` segun corresponda). El chat y las acciones de estudio buscan primero por similitud semantica sobre esos embeddings; si un proyecto no los tiene (por ejemplo, se subio sin proveedor configurado) o la llamada de embeddings falla, el RAG cae automaticamente a busqueda lexical sin romper nada.
 
 ### Frontend
 

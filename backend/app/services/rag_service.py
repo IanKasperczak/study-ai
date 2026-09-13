@@ -1,9 +1,12 @@
+import math
 import re
 from collections import Counter
 
+from app.services.ai_service import ai_service
+
 
 class RAGService:
-    def search(
+    async def search(
         self,
         project: dict,
         query: str,
@@ -11,6 +14,36 @@ class RAGService:
         limit: int = 5,
     ) -> list[dict]:
         candidates = self.get_chunks_for_topics(project=project, topic_ids=topic_ids or [], limit=0)
+
+        semantic = await self._semantic_search(candidates, query, limit)
+        if semantic is not None:
+            return semantic
+
+        return self._lexical_search(candidates, query, limit)
+
+    async def _semantic_search(
+        self, candidates: list[dict], query: str, limit: int
+    ) -> list[dict] | None:
+        """Rank chunks by embedding similarity. Returns None (never an empty
+        list) when embeddings are not available, so callers know to fall back
+        to lexical search instead of treating "no semantic result" as "no match".
+        """
+        if not candidates or any(chunk.get("embedding") is None for chunk in candidates):
+            return None
+
+        query_vectors = await ai_service.embed_texts([query], input_type="query")
+        if not query_vectors:
+            return None
+        query_vector = query_vectors[0]
+
+        scored = [
+            (_cosine_similarity(query_vector, chunk["embedding"]), chunk)
+            for chunk in candidates
+        ]
+        scored.sort(key=lambda item: item[0], reverse=True)
+        return [chunk for _, chunk in scored[:limit]]
+
+    def _lexical_search(self, candidates: list[dict], query: str, limit: int) -> list[dict]:
         query_terms = _terms(query)
 
         if not query_terms:
@@ -87,6 +120,15 @@ class RAGService:
 
 def _terms(text: str) -> list[str]:
     return [term.lower() for term in re.findall(r"\b[\wáéíóúñü]{4,}\b", text.lower())]
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = math.sqrt(sum(x * x for x in a))
+    norm_b = math.sqrt(sum(y * y for y in b))
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return dot / (norm_a * norm_b)
 
 
 rag_service = RAGService()

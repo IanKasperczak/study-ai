@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from uuid import uuid4
 
@@ -42,6 +43,10 @@ async def upload_files(
     new_chunks: list[dict] = []
     processed_any = False
 
+    # Saving to disk is sequential (fast, local I/O), but each document's AI
+    # topic-refinement call can take seconds, so those run concurrently below
+    # instead of blocking one upload request behind another.
+    pending: list[tuple[Path, str, str, str]] = []
     for file in files:
         original_name = file.filename or "untitled"
         suffix = Path(original_name).suffix.lower()
@@ -61,8 +66,12 @@ async def upload_files(
         upload_dir.mkdir(parents=True, exist_ok=True)
         saved_path = upload_dir / f"{uuid4().hex}_{safe_name}"
         saved_path.write_bytes(await file.read())
+        pending.append((saved_path, suffix, original_name, file.content_type or "unknown"))
 
-        result = await _process_document(saved_path, suffix, original_name, file.content_type or "unknown")
+    results = await asyncio.gather(
+        *(_process_document(*item) for item in pending)
+    )
+    for result in results:
         if result is not None:
             document, topics, chunks, ok = result
             new_documents.append(document)
@@ -164,6 +173,11 @@ async def _process_document(
         }
         for index, ((start, chunk_text), chunk_id) in enumerate(zip(chunks_with_offsets, chunk_ids))
     ]
+
+    embeddings = await ai_service.embed_texts([chunk["text"] for chunk in chunks], input_type="passage")
+    if embeddings and len(embeddings) == len(chunks):
+        for chunk, vector in zip(chunks, embeddings):
+            chunk["embedding"] = vector
 
     topics = build_topics_for_document(
         document_id=doc_id,

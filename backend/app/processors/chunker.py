@@ -34,10 +34,10 @@ def chunk_text_with_offsets(
             if current:
                 chunks.append((current_start, current.strip()))
                 current = ""
-            for index, piece in enumerate(
-                _split_long_paragraph(paragraph, max_chars=max_chars, overlap=overlap)
+            for local_start, piece in _split_long_paragraph(
+                paragraph, max_chars=max_chars, overlap=overlap
             ):
-                chunks.append((start + index * max_chars, piece))
+                chunks.append((start + local_start, piece))
             continue
 
         candidate = f"{current}\n\n{paragraph}".strip() if current else paragraph
@@ -68,15 +68,23 @@ def _paragraphs_with_offsets(text: str) -> list[tuple[int, str]]:
     return paragraphs
 
 
-def _split_long_paragraph(paragraph: str, max_chars: int, overlap: int) -> list[str]:
-    chunks: list[str] = []
+def _split_long_paragraph(
+    paragraph: str, max_chars: int, overlap: int
+) -> list[tuple[int, str]]:
+    """Return (local_start_offset, piece) pairs. Consecutive pieces overlap by
+    `overlap` chars, so the offset advances by (max_chars - overlap), not by
+    max_chars — using max_chars here would misalign every offset past the
+    first piece and break chunk-to-topic assignment for long paragraphs."""
+    chunks: list[tuple[int, str]] = []
     start = 0
 
     while start < len(paragraph):
         end = min(start + max_chars, len(paragraph))
-        chunks.append(paragraph[start:end].strip())
+        piece = paragraph[start:end].strip()
+        if piece:
+            chunks.append((start, piece))
         if end == len(paragraph):
             break
         start = max(0, end - overlap)
 
-    return [chunk for chunk in chunks if chunk]
+    return chunks
