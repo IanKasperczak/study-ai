@@ -44,37 +44,30 @@ export function FileUploader({ onProjectReady }: FileUploaderProps) {
   }
 
   return (
-    <section className="panel rounded-lg p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-lg font-semibold text-white">Project Study IA</h1>
-          <p className="mt-1 text-sm text-slate-400">Carga materiales y estudia con contexto.</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-3 text-sm font-medium text-slate-100 transition hover:border-sky-300/50 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
-            Archivos
-          </button>
-          <button
-            type="button"
-            onClick={() => folderInputRef.current?.click()}
-            disabled={isUploading}
-            className="inline-flex h-10 items-center gap-2 rounded-md bg-sky-300 px-3 text-sm font-semibold text-slate-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FolderOpen size={16} />}
-            Carpeta
-          </button>
-        </div>
+    <div className="border-t border-slate-800/80 p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-700 bg-slate-900 px-2 text-sm font-medium text-slate-100 transition hover:border-sky-300/50 hover:text-sky-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} />}
+          Archivos
+        </button>
+        <button
+          type="button"
+          onClick={() => folderInputRef.current?.click()}
+          disabled={isUploading}
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-sky-300 px-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isUploading ? <Loader2 size={16} className="animate-spin" /> : <FolderOpen size={16} />}
+          Carpeta
+        </button>
       </div>
 
       {error ? (
-        <div className="mt-3 rounded-md border border-red-400/30 bg-red-950/35 px-3 py-2 text-sm text-red-100">
+        <div className="mt-2 rounded-md border border-red-400/30 bg-red-950/35 px-3 py-2 text-xs text-red-100">
           {error}
         </div>
       ) : null}
@@ -95,7 +88,7 @@ export function FileUploader({ onProjectReady }: FileUploaderProps) {
         accept=".pdf,.docx,.txt,.md"
         onChange={handleFiles}
       />
-    </section>
+    </div>
   );
 }
 

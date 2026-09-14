@@ -13,7 +13,7 @@ from app.processors.structure import detect_text_headings, merge_headings, norma
 from app.processors.text_processor import extract_plain_text
 from app.services.ai_service import ai_service
 from app.services.study_store import study_store
-from app.services.topic_service import build_topics_for_document
+from app.services.topic_service import apply_ai_topic_filter, build_topics_for_document
 
 router = APIRouter()
 settings = get_settings()
@@ -156,7 +156,11 @@ async def _process_document(
     if not text:
         return failed("No se encontro texto en el archivo.")
 
-    headings = merge_headings(format_headings, detect_text_headings(text))
+    # PDF text keeps a newline per visually wrapped line (not per paragraph), so
+    # the line-based heuristic misreads wrapped sentence fragments as headings.
+    # PDFs rely solely on font-size detection (detect_pdf_headings) instead.
+    text_headings = [] if suffix == ".pdf" else detect_text_headings(text)
+    headings = merge_headings(format_headings, text_headings)
     chunks_with_offsets = chunk_text_with_offsets(text)
     if not chunks_with_offsets:
         return failed("No se pudo dividir el contenido para estudiar.")
@@ -187,6 +191,13 @@ async def _process_document(
         chunks_with_offsets=chunks_with_offsets,
         chunk_ids=chunk_ids,
     )
+
+    # Drop heuristic false positives (author names, cover titles, repeated
+    # headers/footers, cut fragments) before the (heavier) title rewrite, so
+    # that call also has fewer topics to process.
+    valid_flags = await ai_service.filter_valid_topics([topic.title for topic in topics])
+    if valid_flags:
+        topics = apply_ai_topic_filter(topics, valid_flags)
 
     refined = await ai_service.refine_topic_titles(
         [topic.title for topic in topics],

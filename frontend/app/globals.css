@@ -30,24 +30,6 @@ body {
     linear-gradient(145deg, #070914 0%, #0b1020 48%, #10172a 100%);
 }
 
-.star-field::before {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  content: "";
-  opacity: 0.36;
-  background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.72) 1px, transparent 1px),
-    radial-gradient(circle, rgba(125, 211, 252, 0.56) 1px, transparent 1px);
-  background-position:
-    0 0,
-    34px 48px;
-  background-size:
-    92px 92px,
-    130px 130px;
-}
-
 .panel {
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: rgba(11, 16, 32, 0.76);

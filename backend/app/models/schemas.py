@@ -97,3 +97,14 @@ class AiTopic(BaseModel):
 
 class AiTopicTree(BaseModel):
     topics: list[AiTopic] = Field(default_factory=list)
+
+
+# Structured output expected from the AI when filtering out noise
+# (author names, cover titles, repeated headers, cut fragments) among the
+# heuristically-detected topics of a document. Asking for just the noisy
+# indices (instead of a true/false per topic) keeps the reply short even for
+# hundreds of topics -- a long run of repeated true/false values is exactly
+# the kind of degenerate pattern that can make some models loop instead of
+# terminating.
+class AiInvalidTopicIndices(BaseModel):
+    invalid_indices: list[int] = Field(default_factory=list)

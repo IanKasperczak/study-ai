@@ -107,7 +107,23 @@ def looks_like_title(line: str) -> bool:
         return False
     if _SENTENCE_END.search(line):
         return False
+    if not _starts_like_title(line):
+        return False
     return True
+
+
+def _starts_like_title(line: str) -> bool:
+    """Reject fragments that clearly continue mid-sentence (lowercase start).
+
+    Real headings start with an uppercase letter or a digit (numbered
+    sections). A lowercase start is a strong signal the "line" is really a
+    fragment carved out of running body text by the PDF extractor (e.g. an
+    inline bold word), not an actual title.
+    """
+    first_alpha = next((ch for ch in line if ch.isalpha()), None)
+    if first_alpha is None:
+        return True
+    return first_alpha.isupper()
 
 
 def _is_heading_like(line: str) -> bool:

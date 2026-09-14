@@ -57,6 +57,57 @@ class AIService:
             for index, topic in enumerate(tree.topics)
         ]
 
+    async def filter_valid_topics(self, titles: list[str]) -> list[bool] | None:
+        """Ask the AI which heuristically-detected section titles are real
+        study topics versus noise the font-size heuristic mistakenly picked
+        up (author names, cover/title-page text, repeated headers or
+        footers, sentence fragments cut in half by the PDF extractor).
+
+        Returns booleans in the SAME order/count as titles, or None when the
+        provider is unavailable or the reply is not usable. Kept as a
+        separate, lightweight call from refine_topic_titles: rewriting every
+        title/description already strains the output budget on large
+        documents, and asking for a true/false per topic doesn't help --
+        tested against a real 136-topic batch, that shape made the model
+        loop past the input length repeating "true" without ever emitting a
+        closing brace. Asking for just the indices that are noise keeps the
+        reply tiny (most topics are valid) and lets it terminate naturally.
+        """
+        if not titles:
+            return None
+
+        numbered = "\n".join(f"{index + 1}. {title}" for index, title in enumerate(titles))
+        prompt = (
+            "Estos titulos de seccion fueron detectados automaticamente por tamano "
+            "de fuente en un documento de estudio. La mayoria son temas de "
+            "contenido real (capitulos, secciones, subsecciones); algunos son "
+            "ruido, por ejemplo nombres de autores o profesores, titulos de "
+            "tapa/portada o el titulo general del documento/compendio, secciones "
+            "que no son contenido de estudio en si mismas (bibliografia, "
+            "referencias, indice, glosario, apendice, anexos), encabezados o "
+            "pies de pagina repetidos, o fragmentos de una oracion cortados a "
+            "la mitad.\n"
+            "Responde SOLO con los numeros de los titulos que son ruido (no "
+            "temas reales), como JSON compacto, sin explicaciones. Si ninguno "
+            "es ruido, devolve una lista vacia.\n"
+            'Formato: {"invalid_indices": [3, 12, 45]}\n\n'
+            f"Titulos:\n{numbered}\n"
+        )
+
+        payload = await self._complete_json(prompt, max_tokens=1024)
+        if payload is None:
+            return None
+
+        indices = _parse_invalid_indices(payload)
+        if indices is None:
+            return None
+
+        valid = [True] * len(titles)
+        for index in indices:
+            if isinstance(index, int) and 1 <= index <= len(titles):
+                valid[index - 1] = False
+        return valid
+
     async def embed_texts(self, texts: list[str], input_type: str) -> list[list[float]] | None:
         """Embed a batch of texts with the active provider's embedding model.
 
@@ -126,6 +177,14 @@ class AIService:
             from openai import AsyncOpenAI
 
             client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
+            # Reasoning/"thinking" models burn a chunk of max_tokens on internal
+            # deliberation before ever emitting the JSON; for a short structured
+            # reply we don't need it, so turn it off where the provider supports it.
+            extra_body = (
+                {"chat_template_kwargs": {"enable_thinking": False}}
+                if config["provider"] == "nim"
+                else None
+            )
             response = await client.chat.completions.create(
                 model=config["model"],
                 messages=[
@@ -137,6 +196,7 @@ class AIService:
                 ],
                 temperature=0.1,
                 max_tokens=max_tokens,
+                extra_body=extra_body,
                 timeout=settings.ai_timeout_seconds,
             )
             content = response.choices[0].message.content or ""
@@ -252,6 +312,17 @@ def _parse_topic_tree(payload: dict):
         from app.models.schemas import AiTopicTree
 
         return AiTopicTree.model_validate(payload)
+    except (ValidationError, ValueError):
+        return None
+
+
+def _parse_invalid_indices(payload: dict) -> list[int] | None:
+    try:
+        from pydantic import ValidationError
+
+        from app.models.schemas import AiInvalidTopicIndices
+
+        return AiInvalidTopicIndices.model_validate(payload).invalid_indices
     except (ValidationError, ValueError):
         return None
 

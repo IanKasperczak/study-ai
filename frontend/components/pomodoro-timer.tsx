@@ -301,15 +301,15 @@ export function PomodoroTimer() {
       ref={panelRef}
       onPointerDown={onDragStart}
       style={panelStyle}
-      className="z-30 cursor-move touch-none select-none rounded-lg border border-slate-700/80 bg-slate-950/90 p-4 shadow-glow backdrop-blur"
+      className="z-30 flex touch-none select-none flex-col overflow-hidden rounded-lg border border-slate-700/80 bg-slate-950/90 p-4 shadow-glow backdrop-blur"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <GripHorizontal size={16} className="text-slate-500" />
-          <Bell size={16} className="text-emerald-300" />
-          <span className="text-sm font-semibold text-white">Temporizador</span>
+      <div className="flex shrink-0 cursor-move items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <GripHorizontal size={16} className="shrink-0 text-slate-500" />
+          <Bell size={16} className="shrink-0 text-emerald-300" />
+          <span className="truncate text-sm font-semibold text-white">Temporizador</span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={() => setSoundEnabled((value) => !value)}
@@ -329,72 +329,74 @@ export function PomodoroTimer() {
         </div>
       </div>
 
-      <label className="mt-3 block">
-        <span className="text-xs uppercase tracking-[0.14em] text-slate-500">
-          Tecnica
-        </span>
-        <select
-          value={technique.id}
-          onChange={(event) => changeTechnique(event.target.value)}
-          className="mt-1 h-9 w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-sm text-slate-100 outline-none transition focus:border-sky-300/70"
-        >
-          {TECHNIQUES.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name} ({formatTime(item.workSeconds)} / {formatTime(item.breakSeconds)})
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="thin-scrollbar min-h-0 flex-1 touch-auto overflow-y-auto pr-1">
+        <label className="mt-3 block">
+          <span className="text-xs uppercase tracking-[0.14em] text-slate-500">
+            Tecnica
+          </span>
+          <select
+            value={technique.id}
+            onChange={(event) => changeTechnique(event.target.value)}
+            className="mt-1 h-9 w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-sm text-slate-100 outline-none transition focus:border-sky-300/70"
+          >
+            {TECHNIQUES.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name} ({formatTime(item.workSeconds)} / {formatTime(item.breakSeconds)})
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => toggleMode("work")}
-          className={`h-8 rounded-md text-xs font-medium transition ${
-            timer.mode === "work"
-              ? "bg-sky-300 text-slate-950"
-              : "bg-slate-900 text-slate-300"
-          }`}
-        >
-          Foco
-        </button>
-        <button
-          type="button"
-          onClick={() => toggleMode("break")}
-          className={`h-8 rounded-md text-xs font-medium transition ${
-            timer.mode === "break"
-              ? "bg-emerald-300 text-slate-950"
-              : "bg-slate-900 text-slate-300"
-          }`}
-        >
-          Pausa
-        </button>
-      </div>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => toggleMode("work")}
+            className={`h-8 rounded-md text-xs font-medium transition ${
+              timer.mode === "work"
+                ? "bg-sky-300 text-slate-950"
+                : "bg-slate-900 text-slate-300"
+            }`}
+          >
+            Foco
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleMode("break")}
+            className={`h-8 rounded-md text-xs font-medium transition ${
+              timer.mode === "break"
+                ? "bg-emerald-300 text-slate-950"
+                : "bg-slate-900 text-slate-300"
+            }`}
+          >
+            Pausa
+          </button>
+        </div>
 
-      <div className="py-5 text-center">
-        <div className="text-4xl font-semibold tabular-nums text-white">{formattedTime}</div>
-        <p className="mt-1 text-xs text-slate-400">
-          {timer.mode === "work" ? "Foco" : "Descanso"} · {studiedMinutes} min estudiados
-        </p>
-      </div>
+        <div className="py-5 text-center">
+          <div className="text-4xl font-semibold tabular-nums text-white">{formattedTime}</div>
+          <p className="mt-1 text-xs text-slate-400">
+            {timer.mode === "work" ? "Foco" : "Descanso"} · {studiedMinutes} min estudiados
+          </p>
+        </div>
 
-      <div className="grid grid-cols-[1fr_44px] gap-2">
-        <button
-          type="button"
-          onClick={toggleRunning}
-          className={`inline-flex h-10 items-center justify-center gap-2 rounded-md text-sm font-semibold transition ${technique.accent}`}
-        >
-          {timer.isRunning ? <Pause size={16} /> : <Play size={16} />}
-          {timer.isRunning ? "Pausar" : "Iniciar"}
-        </button>
-        <button
-          type="button"
-          onClick={resetTimer}
-          className="grid h-10 place-items-center rounded-md border border-slate-700 text-slate-200 transition hover:border-slate-500"
-          aria-label="Reiniciar temporizador"
-        >
-          <RotateCcw size={16} />
-        </button>
+        <div className="grid grid-cols-[1fr_44px] gap-2">
+          <button
+            type="button"
+            onClick={toggleRunning}
+            className={`inline-flex h-10 items-center justify-center gap-2 rounded-md text-sm font-semibold transition ${technique.accent}`}
+          >
+            {timer.isRunning ? <Pause size={16} /> : <Play size={16} />}
+            {timer.isRunning ? "Pausar" : "Iniciar"}
+          </button>
+          <button
+            type="button"
+            onClick={resetTimer}
+            className="grid h-10 place-items-center rounded-md border border-slate-700 text-slate-200 transition hover:border-slate-500"
+            aria-label="Reiniciar temporizador"
+          >
+            <RotateCcw size={16} />
+          </button>
+        </div>
       </div>
 
       <div

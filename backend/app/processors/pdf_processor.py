@@ -45,13 +45,18 @@ def detect_pdf_headings(path: Path) -> list[Heading]:
             raw = page.get_text("dict")
             for block in raw.get("blocks", []):
                 for line in block.get("lines", []):
-                    size = max(
-                        (span.get("size", 0.0) for span in line.get("spans", [])),
-                        default=0.0,
-                    )
-                    text = "".join(
-                        span.get("text", "") for span in line.get("spans", [])
-                    ).strip()
+                    line_spans = [
+                        span for span in line.get("spans", []) if span.get("text", "").strip()
+                    ]
+                    if not line_spans:
+                        continue
+                    # Use the SMALLEST span size in the line, not the largest: a real
+                    # heading is styled uniformly large, while a body line with just
+                    # one inline bold/emphasized word would otherwise pass the size
+                    # threshold via that single word and drag in the whole line as a
+                    # bogus, mid-sentence "heading".
+                    size = min(span.get("size", 0.0) for span in line_spans)
+                    text = "".join(span.get("text", "") for span in line_spans).strip()
                     if size > 0 and text:
                         sizes.append((size, len(text) * max(1, int(size / 10))))
                         page_spans.append((size, text))

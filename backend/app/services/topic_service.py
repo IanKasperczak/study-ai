@@ -50,6 +50,45 @@ def build_topics_for_document(
     return topics
 
 
+def apply_ai_topic_filter(topics: list[Topic], valid_flags: list[bool]) -> list[Topic]:
+    """Drop topics the AI flagged as noise (author names, cover titles,
+    repeated headers/footers, cut fragments), folding their chunks and any
+    children into the nearest kept ancestor so no content disappears from
+    the RAG index. Falls back to the original list if the flags don't line
+    up 1:1 with topics, or if nothing would survive the filter.
+    """
+    if len(valid_flags) != len(topics) or not any(valid_flags):
+        return topics
+
+    redirect: dict[str, str | None] = {}
+    kept_by_id: dict[str, Topic] = {}
+    kept: list[Topic] = []
+    orphan_chunk_ids: list[str] = []
+
+    for topic, is_valid in zip(topics, valid_flags):
+        parent_id = topic.parent_id
+        while parent_id is not None and parent_id in redirect:
+            parent_id = redirect[parent_id]
+        topic.parent_id = parent_id
+
+        if is_valid:
+            kept.append(topic)
+            kept_by_id[topic.id] = topic
+            continue
+
+        redirect[topic.id] = parent_id
+        target = kept_by_id.get(parent_id) if parent_id else None
+        if target is not None:
+            target.chunk_ids.extend(topic.chunk_ids)
+        else:
+            orphan_chunk_ids.extend(topic.chunk_ids)
+
+    if orphan_chunk_ids:
+        kept[0].chunk_ids.extend(orphan_chunk_ids)
+
+    return kept
+
+
 def build_fallback_topic(document_id: str, filename: str, chunk_ids: list[str]) -> Topic:
     return Topic(
         id=_topic_id(document_id, 0),
