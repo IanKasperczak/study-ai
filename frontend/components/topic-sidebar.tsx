@@ -153,24 +153,24 @@ export function TopicSidebar({
             return (
               <div key={doc.id}>
                 <div
-                  className={`flex w-full items-center gap-2 rounded-lg border p-2.5 text-left transition ${
+                  className={`flex w-full items-center gap-2 rounded-lg border p-3 text-left shadow-sm transition ${
                     docState === "none"
-                      ? "border-slate-800 bg-slate-950/35"
-                      : "border-slate-700 bg-slate-900/50"
+                      ? "border-slate-700/80 bg-slate-900/55"
+                      : "border-sky-300/40 bg-slate-900/70"
                   }`}
                 >
                   <button
                     type="button"
                     onClick={() => toggleExpanded(docKey)}
                     disabled={!docIds.length}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 transition hover:text-slate-200 disabled:opacity-30"
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-400 transition hover:text-slate-100 disabled:opacity-30"
                     aria-label={docExpanded ? "Colapsar archivo" : "Expandir archivo"}
                   >
                     {docIds.length ? (
                       docExpanded ? (
-                        <ChevronDown size={15} />
+                        <ChevronDown size={16} />
                       ) : (
-                        <ChevronRight size={15} />
+                        <ChevronRight size={16} />
                       )
                     ) : null}
                   </button>
@@ -178,16 +178,18 @@ export function TopicSidebar({
                     type="button"
                     onClick={() => docIds.length && onToggleTopics(docIds)}
                     disabled={!docIds.length}
-                    className="flex min-w-0 flex-1 items-center gap-2 text-left disabled:cursor-not-allowed"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 text-left disabled:cursor-not-allowed"
                   >
                     <SelectionIcon state={docState} tone="file" />
-                    <FileText size={14} className="shrink-0 text-slate-400" />
-                    <span className="truncate text-sm font-medium text-white">{doc.filename}</span>
+                    <FileText size={15} className="shrink-0 text-sky-300" />
+                    <span className="truncate text-sm font-semibold uppercase tracking-wide text-white">
+                      {doc.filename}
+                    </span>
                   </button>
                 </div>
 
                 {docExpanded ? (
-                  <div className="mt-1 space-y-1">
+                  <div className="ml-4 mt-1.5 space-y-1 border-l border-slate-800 pl-3">
                     {tree.map((node) => (
                       <TopicNodeRow
                         key={node.id}
@@ -236,11 +238,20 @@ function TopicNodeRow({
   const ids = collectIds(node);
   const state = selectionState(ids, selectedTopicIds);
 
+  // Tema (depth 1) reads as the primary row; Subtema (depth 2+) is visibly
+  // smaller/quieter so the hierarchy is legible without relying on color.
+  const isTema = depth === 1;
+  const iconBoxSize = isTema ? "h-6 w-6" : "h-5 w-5";
+  const iconSize = isTema ? 14 : 12;
+  const titleClass = isTema
+    ? "line-clamp-2 text-sm font-medium text-white"
+    : "line-clamp-2 text-[13px] font-normal text-slate-300";
+  const rowPadding = isTema ? "p-2.5" : "p-1.5";
+
   return (
     <div>
       <div
-        style={{ paddingLeft: 8 + depth * 14 }}
-        className={`flex w-full items-start gap-2 rounded-lg border p-2 text-left transition ${
+        className={`flex w-full items-start gap-2 rounded-lg border ${rowPadding} text-left transition ${
           state === "none"
             ? "border-slate-800 bg-slate-950/25 hover:border-slate-600"
             : "border-sky-300/50 bg-sky-300/5"
@@ -260,10 +271,10 @@ function TopicNodeRow({
           onClick={() => onToggleSelect(ids)}
           className="flex min-w-0 flex-1 items-start gap-2 text-left"
         >
-          <SelectionIcon state={state} tone="topic" />
+          <SelectionIcon state={state} tone="topic" boxSize={iconBoxSize} iconSize={iconSize} />
           <div className="min-w-0">
-            <h3 className="line-clamp-2 text-sm font-medium text-white">{node.title}</h3>
-            {node.description ? (
+            <h3 className={titleClass}>{node.title}</h3>
+            {isTema && node.description ? (
               <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-slate-400">
                 {node.description}
               </p>
@@ -273,7 +284,7 @@ function TopicNodeRow({
       </div>
 
       {hasChildren && isExpanded ? (
-        <div className="mt-1 space-y-1">
+        <div className="ml-3 mt-1 space-y-1 border-l border-slate-800/60 pl-3">
           {node.children.map((child) => (
             <TopicNodeRow
               key={child.id}
@@ -291,25 +302,35 @@ function TopicNodeRow({
   );
 }
 
-function SelectionIcon({ state, tone }: { state: "all" | "some" | "none"; tone: "file" | "topic" }) {
-  const base = "mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-md border";
+function SelectionIcon({
+  state,
+  tone,
+  boxSize = "h-6 w-6",
+  iconSize = 14
+}: {
+  state: "all" | "some" | "none";
+  tone: "file" | "topic";
+  boxSize?: string;
+  iconSize?: number;
+}) {
+  const base = `mt-0.5 grid ${boxSize} shrink-0 place-items-center rounded-md border`;
   if (state === "all") {
     return (
       <div className={`${base} border-sky-300 bg-sky-300 text-slate-950`}>
-        <Check size={14} />
+        <Check size={iconSize} />
       </div>
     );
   }
   if (state === "some") {
     return (
       <div className={`${base} border-sky-300/70 bg-sky-300/20 text-sky-200`}>
-        <Minus size={14} />
+        <Minus size={iconSize} />
       </div>
     );
   }
   return (
     <div className={`${base} border-slate-700 text-slate-600`}>
-      {tone === "file" ? <FileText size={12} /> : null}
+      {tone === "file" ? <FileText size={iconSize - 2} /> : null}
     </div>
   );
 }
