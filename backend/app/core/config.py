@@ -45,6 +45,7 @@ class Settings:
     nim_api_key: str
     nim_base_url: str
     nim_model: str
+    nim_fallback_model: str
     nim_embed_model: str
     ai_provider: str
     ai_timeout_seconds: float
@@ -78,7 +79,8 @@ def get_settings() -> Settings:
         ollama_embed_model=os.getenv("OLLAMA_EMBED_MODEL", "nomic-embed-text"),
         nim_api_key=os.getenv("NVIDIA_API_KEY", os.getenv("NIM_API_KEY", "")),
         nim_base_url=os.getenv("NIM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
-        nim_model=os.getenv("NIM_MODEL", "meta/llama-3.1-8b-instruct"),
+        nim_model=os.getenv("NIM_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b"),
+        nim_fallback_model=os.getenv("NIM_FALLBACK_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
         nim_embed_model=os.getenv("NIM_EMBED_MODEL", "nvidia/nv-embedqa-e5-v5"),
         ai_provider=os.getenv("AI_PROVIDER", "").lower(),
         ai_timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "300") or 300),

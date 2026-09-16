@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: study-ai-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: AI_PROVIDER
+        value: nim
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NIM_MODEL
+        value: nvidia/nemotron-3.5-lightning-30b-a3b
+      - key: NIM_FALLBACK_MODEL
+        value: nvidia/nemotron-3-ultra-550b-a55b
+      - key: NIM_EMBED_MODEL
+        value: nvidia/nv-embedqa-e5-v5
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: AI_TIMEOUT_SECONDS
+        value: "300"

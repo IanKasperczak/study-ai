@@ -1,27 +1,42 @@
 # Project Study IA
 
-Aplicacion web/de escritorio para estudiar con ayuda de inteligencia artificial. El MVP permite cargar archivos locales de estudio, extraer texto de documentos, dividir el contenido en chunks, generar temas automaticamente y estudiar con resumenes, explicaciones simples, chat contextual y temporizador Pomodoro.
+Aplicacion web para estudiar con ayuda de inteligencia artificial. Permite cargar documentos locales (PDF, DOCX, TXT, MD), los organiza automaticamente en una jerarquia de Archivo → Tema → Subtema, y ofrece resumenes, explicaciones simples y chat contextual con RAG semantico sobre ese material.
+
+## Demo
+
+**App:** [URL DEL DEPLOY EN VERCEL]
+**API:** [URL DEL DEPLOY EN RENDER]
+
+> La demo publica corre con almacenamiento efimero (ver [Notas sobre el deploy](#notas-sobre-el-deploy-publico)): los documentos subidos pueden perderse si el backend se reinicia.
 
 ## Estado Del Proyecto
 
-MVP base implementado:
+- Frontend con Next.js, TypeScript, TailwindCSS y Framer Motion.
+- Backend con FastAPI.
+- Procesamiento de PDF (por tamaño de fuente), DOCX (por estilos) y TXT/MD.
+- Deteccion automatica de estructura: Archivo → Tema → Subtema, renderizada como arbol plegable.
+- Filtro de temas con IA: ademas del heuristico de deteccion, un paso de IA revisa los titulos detectados y descarta ruido (nombres de autor, tapas, bibliografia, fragmentos cortados) que el heuristico no puede distinguir por si solo.
+- RAG con busqueda semantica por embeddings (si el provider activo los soporta) y fallback automatico a busqueda lexica.
+- Cadena de fallback entre modelos: si el modelo de IA principal falla o da timeout, reintenta automaticamente con un modelo secundario antes de degradar a modo extractivo.
+- Pomodoro flotante, movible y redimensionable.
+- Fondo interactivo (canvas animado, no CSS estatico): las estrellas titilan y reaccionan al mouse.
 
-- Frontend separado con Next.js, TypeScript, TailwindCSS y Framer Motion.
-- Backend separado con FastAPI.
-- Procesamiento inicial de PDF, DOCX, TXT y MD.
-- Almacenamiento local temporal en `backend/storage`.
-- Generacion heuristica de temas.
-- RAG con busqueda semantica por embeddings (si el provider activo los soporta) y fallback automatico a busqueda lexical sobre chunks locales.
-- Servicios preparados para usar OpenAI, NVIDIA NIM u Ollama segun `AI_PROVIDER`.
-- Pomodoro funcional con estadisticas simples en `localStorage`.
+No incluye autenticacion ni base de datos SQL — es un MVP de un solo usuario.
 
-No incluye autenticacion ni base de datos SQL.
+## Highlights tecnicos
+
+Un resumen de los problemas no triviales que aparecieron construyendo esto (mas detalle en los commits):
+
+- **Falsos positivos de tamaño de fuente en PDF**: el heuristico de deteccion de titulos originalmente confundia con miles de "temas" cualquier linea de texto que envolviera visualmente (line-wrap) y, tras el primer fix, cualquier palabra en negrita dentro de un parrafo. La causa raiz: PyMuPDF a veces separa una palabra enfatizada del resto de la linea, y usar el tamaño *maximo* de fuente de esa linea (en vez del minimo) hacia que el parrafo entero se colara como titulo. Se resolvio con tres capas: no correr el heuristico de texto plano sobre PDFs (su extraccion no respeta parrafos), usar el tamaño minimo por linea, y exigir que un titulo candidato empiece con mayuscula.
+- **Un modelo LLM entrando en loop de repeticion**: pedirle a un modelo de 550B parametros un booleano por cada uno de 136 temas hacia que se pusiera a repetir `"true, true, true..."` mucho mas alla del input, sin terminar nunca el JSON. La solucion no fue subir el limite de tokens (eso solo tardaba mas y seguia fallando) sino cambiar el contrato: pedirle unicamente los *indices* de los temas invalidos — una respuesta ordenes de magnitud mas corta que termina de forma natural.
+- **Cadena de fallback de modelos**: en vez de depender de un unico modelo NIM, el backend prueba un modelo rapido primero y cae automaticamente a uno mas pesado (pero mas confiable) si el primero falla — verificado simulando la falla del modelo primario y confirmando que la respuesta segue siendo correcta.
+- **Reconstruccion de jerarquia sin tocar el backend**: el modelo de datos (`Topic.parent_id`) ya soportaba arboles desde antes; renderizar Archivo → Tema → Subtema como un arbol plegable con seleccion en cascada fue puramente un cambio de frontend.
 
 ## Stack
 
 ### Frontend
 
-- Next.js
+- Next.js 16 (App Router)
 - TypeScript
 - TailwindCSS
 - Framer Motion
@@ -29,27 +44,23 @@ No incluye autenticacion ni base de datos SQL.
 
 ### Backend
 
-- Python
-- FastAPI
-- Uvicorn
-- PyMuPDF
+- Python 3.13
+- FastAPI + Uvicorn
+- PyMuPDF (extraccion y estructura de PDF)
 - python-docx
-- OpenAI SDK preparado para integracion
+- OpenAI SDK (cliente compartido para OpenAI, NVIDIA NIM y Ollama, todos OpenAI-compatibles)
 
 ### IA y RAG
 
-- OpenAI API opcional mediante `OPENAI_API_KEY`
-- NVIDIA NIM opcional mediante `AI_PROVIDER=nim` y `NVIDIA_API_KEY` (hosteado o self-hosted)
-- Ollama local opcional mediante `AI_PROVIDER=ollama` y `OLLAMA_MODEL`
-- Otros proveedores OpenAI-compatibles via `OPENAI_BASE_URL`
-- RAG con embeddings por chunk (OpenAI, NVIDIA NIM u Ollama, segun el provider activo) y ranking por similitud coseno
-- Si no hay embeddings disponibles, cae automaticamente a busqueda lexical (nunca rompe el chat)
-- Preparado para evolucionar a un vector store dedicado (ChromaDB) si el volumen de documentos crece
+- Proveedores soportados: OpenAI, NVIDIA NIM, Ollama local, o cualquier endpoint OpenAI-compatible (`OPENAI_BASE_URL`).
+- Cadena de fallback: para NIM, se intenta `NIM_MODEL` (rapido) y, si falla, `NIM_FALLBACK_MODEL` (mas pesado).
+- Embeddings por chunk al subir un documento, con ranking por similitud coseno; si no hay embeddings disponibles, cae a busqueda lexica.
+- Filtro de temas por IA (`filter_valid_topics`) ademas del heuristico de deteccion — ver Highlights tecnicos.
 
 ## Arquitectura
 
 ```text
-project-study-ia/
+study-ai/
 |-- frontend/
 |   |-- app/
 |   |-- components/
@@ -64,9 +75,9 @@ project-study-ia/
 |   |   |-- processors/
 |   |   `-- services/
 |   |-- requirements.txt
+|   |-- .python-version
 |   `-- .env.example
-|-- docs/
-|   `-- screenshots/
+|-- render.yaml
 |-- README.md
 `-- .gitignore
 ```
@@ -74,78 +85,51 @@ project-study-ia/
 ### Decisiones Importantes
 
 - El frontend no accede directamente al sistema de archivos. Usa inputs de archivo/carpeta del navegador y envia los documentos al backend.
-- El backend guarda datos temporales localmente en `backend/storage`, que esta excluido de Git.
-- El RAG inicial es lexical para mantener el MVP simple y ejecutable sin depender de embeddings.
-- La capa `ai_service.py` centraliza OpenAI. Si no hay API key, devuelve respuestas extractivas basadas en el contexto.
-- Los procesadores de documentos estan separados por formato para que sea facil sumar PPTX, video, Whisper y ffmpeg despues.
+- El backend guarda datos temporales localmente en `backend/storage` (JSON por proyecto), excluido de Git. No hay base de datos porque el volumen esperado (uso personal) no lo justifica.
+- La deteccion de estructura (Archivo/Tema/Subtema) es heuristica y determinista (tamaño de fuente en PDF, estilos en DOCX); la IA solo se usa despues para pulir texto y filtrar ruido, nunca para decidir los limites de un tema — evita depender de un LLM para offsets de caracteres exactos.
+- `ai_service.py` centraliza todos los proveedores de IA detras de la misma interfaz OpenAI-compatible. Sin proveedor configurado, el backend responde en modo extractivo (resumenes/respuestas basados en las oraciones mas relevantes del contexto, sin LLM).
 
-## Features Del MVP
+## Features
 
-- Subida de multiples archivos.
-- Subida de carpeta desde navegador compatible.
-- Extraccion de texto desde PDF.
-- Extraccion de texto desde DOCX.
-- Extraccion de texto desde TXT/MD.
-- Chunking de contenido.
-- Generacion automatica de temas.
-- Sidebar con temas seleccionables.
-- Accion para generar resumen.
-- Accion para generar explicacion simple.
-- Chat contextual basado en documentos cargados.
-- Pomodoro flotante, movible y redimensionable, con minimizar, modo foco/pausa, multiples tecnicas de estudio (Pomodoro, Foco profundo, Flow, Sprint, Micro) y sonido opcional.
+- Subida de multiples archivos o carpeta completa.
+- Extraccion de texto y estructura desde PDF, DOCX, TXT/MD.
+- Arbol de temas plegable (Archivo → Tema → Subtema) con seleccion en cascada.
+- Sidebar y panel de herramientas colapsables (estado persistido).
+- Resumen y explicacion simple por seleccion de temas.
+- Chat contextual con RAG semantico.
+- Pomodoro flotante con multiples tecnicas de estudio (Pomodoro, Foco profundo, Flow, Sprint, Micro).
+- Fondo animado interactivo (canvas, reacciona al mouse).
+- Panel de herramientas (voz/audio, flashcards, quiz) — placeholder para features futuras.
 
 ## Roadmap
 
 ### Fase 1: MVP Base
 
-- [x] Crear monorepo frontend/backend.
-- [x] Implementar UI principal oscura.
-- [x] Implementar carga de archivos.
-- [x] Procesar PDF, DOCX y texto.
-- [x] Crear chunking y temas automaticos.
-- [x] Crear resumen, explicacion simple y chat contextual.
-- [x] Agregar Pomodoro.
+- [x] Monorepo frontend/backend, UI oscura, carga de archivos, chunking, temas automaticos, resumen/explicacion/chat, Pomodoro.
 
 ### Fase 2: RAG Real
 
-- [x] Agregar embeddings (por chunk, al subir el documento).
-- [x] Mejorar ranking semantico (similitud coseno, con fallback lexical).
-- [ ] Integrar ChromaDB (hoy la similitud se calcula en memoria; migrar cuando el volumen de chunks lo justifique).
-- [ ] Agregar citas mas precisas por documento y pagina.
+- [x] Embeddings por chunk con ranking por similitud coseno y fallback lexico.
+- [x] Filtro de temas por IA para descartar ruido que el heuristico no distingue.
+- [x] Cadena de fallback entre modelos.
+- [ ] Integrar un vector store dedicado (ChromaDB) si el volumen de chunks lo justifica.
+- [ ] Citas mas precisas por documento y pagina.
 
 ### Fase 3: Mas Formatos
 
-- [ ] Procesar PPTX.
-- [ ] Procesar MP4/video.
-- [ ] Extraer audio con ffmpeg.
-- [ ] Transcribir con Whisper o equivalente.
+- [ ] PPTX, video (MP4), extraccion de audio (ffmpeg) y transcripcion (Whisper).
 
 ### Fase 4: Experiencia De Estudio
 
-- [ ] Flashcards.
-- [ ] Preguntas tipo examen.
-- [ ] Mini quiz.
-- [ ] Explicacion paso a paso.
-- [ ] Historial de sesiones.
-- [ ] Estadisticas mas completas.
-
-## Screenshots
-
-Placeholders para futuras capturas:
-
-| Vista | Archivo |
-| --- | --- |
-| Dashboard principal | `docs/screenshots/dashboard.png` |
-| Panel de temas | `docs/screenshots/topics-panel.png` |
-| Chat contextual | `docs/screenshots/context-chat.png` |
-| Pomodoro flotante | `docs/screenshots/pomodoro.png` |
+- [ ] Voz y audio, flashcards, quiz (el panel de herramientas ya tiene el espacio reservado).
+- [ ] Explicacion paso a paso, historial de sesiones, estadisticas mas completas.
 
 ## Instalacion Local
 
 ### Requisitos
 
 - Node.js 20+
-- Python 3.11+
+- Python 3.13
 - Git
 
 ### Backend
@@ -167,7 +151,7 @@ En macOS/Linux:
 source .venv/bin/activate
 ```
 
-Instalar dependencias y correr API:
+Instalar dependencias y correr la API:
 
 ```bash
 pip install -r requirements.txt
@@ -175,17 +159,7 @@ copy .env.example .env
 uvicorn app.main:app --reload
 ```
 
-La API queda disponible en:
-
-```text
-http://localhost:8000
-```
-
-Health check:
-
-```text
-http://localhost:8000/health
-```
+API en `http://localhost:8000`, health check en `http://localhost:8000/health`.
 
 ### Frontend
 
@@ -196,11 +170,7 @@ copy .env.example .env.local
 npm run dev
 ```
 
-La app queda disponible en:
-
-```text
-http://localhost:3000
-```
+App en `http://localhost:3000`.
 
 ## Variables De Entorno
 
@@ -209,11 +179,12 @@ http://localhost:3000
 ```env
 PROJECT_NAME=Project Study IA
 API_PREFIX=/api
-CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+CORS_ORIGINS=*
 STORAGE_DIR=./storage
 UPLOAD_DIR=./storage/uploads
 PROJECTS_DIR=./storage/projects
 AI_PROVIDER=
+AI_TIMEOUT_SECONDS=300
 OPENAI_API_KEY=
 OPENAI_CHAT_MODEL=gpt-4o-mini
 OPENAI_BASE_URL=
@@ -221,17 +192,18 @@ OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 NVIDIA_API_KEY=
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1
-NIM_MODEL=meta/llama-3.1-8b-instruct
+NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
+NIM_FALLBACK_MODEL=nvidia/nemotron-3-ultra-550b-a55b
 NIM_EMBED_MODEL=nvidia/nv-embedqa-e5-v5
 OPENAI_EMBED_MODEL=text-embedding-3-small
 OLLAMA_EMBED_MODEL=nomic-embed-text
 ```
 
-`AI_PROVIDER` acepta `openai`, `nim`, `ollama` o vacio (auto-deteccion: OpenAI, despues NIM, despues Ollama, segun que variables esten seteadas). Ollama expone una API OpenAI-compatible, asi que tambien funciona con cualquier motor que sirva `/v1`. Con `OPENAI_BASE_URL` se puede apuntar a otros proveedores compatibles (Groq, OpenRouter, etc.).
+`AI_PROVIDER` acepta `openai`, `nim`, `ollama` o vacio (auto-deteccion: OpenAI, despues NIM, despues Ollama, segun que variables esten seteadas).
 
-Para usar **NVIDIA NIM** en vez de Ollama local: seteá `AI_PROVIDER=nim` y `NVIDIA_API_KEY` con una key generada en [build.nvidia.com](https://build.nvidia.com); `NIM_MODEL` acepta cualquier modelo del catalogo NIM (ej. `meta/llama-3.1-8b-instruct`, `mistralai/mixtral-8x7b-instruct-v0.1`). Si corres tu propio NIM self-hosted (container Docker de NVIDIA), apunta `NIM_BASE_URL` a ese endpoint y dejá `NVIDIA_API_KEY` vacio. Sin ningun proveedor configurado o activo, el backend responde en modo extractivo.
+Para **NVIDIA NIM**: generá una API key en [build.nvidia.com](https://build.nvidia.com) y setea `AI_PROVIDER=nim` + `NVIDIA_API_KEY`. La misma key funciona para cualquier modelo del catalogo (no esta atada a uno solo), asi que se prueba primero `NIM_MODEL` (rapido) y, si falla o tira error, se reintenta automaticamente con `NIM_FALLBACK_MODEL` (mas pesado/lento pero mas confiable) antes de degradar a modo extractivo. Si corres un NIM self-hosted, apunta `NIM_BASE_URL` a tu endpoint y dejá `NVIDIA_API_KEY` vacio.
 
-El mismo provider activo (`openai`, `nim` u `ollama`) se usa tambien para generar embeddings de cada chunk al subir un documento (`NIM_EMBED_MODEL`, `OPENAI_EMBED_MODEL`, `OLLAMA_EMBED_MODEL` segun corresponda). El chat y las acciones de estudio buscan primero por similitud semantica sobre esos embeddings; si un proyecto no los tiene (por ejemplo, se subio sin proveedor configurado) o la llamada de embeddings falla, el RAG cae automaticamente a busqueda lexical sin romper nada.
+El mismo provider activo se usa tambien para embeddings (`NIM_EMBED_MODEL` / `OPENAI_EMBED_MODEL` / `OLLAMA_EMBED_MODEL`, sin cadena de fallback — mezclar modelos de embeddings rompe la comparabilidad de los vectores).
 
 ### Frontend
 
@@ -239,9 +211,37 @@ El mismo provider activo (`openai`, `nim` u `ollama`) se usa tambien para genera
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
+## Deploy
+
+Dos servicios independientes: backend en Render, frontend en Vercel.
+
+### Backend (Render)
+
+El repo incluye [`render.yaml`](render.yaml) para un deploy por Blueprint:
+
+1. En Render, **New +** → **Blueprint**, conectá este repo.
+2. Render detecta `render.yaml` y crea el servicio (root `backend`, build `pip install -r requirements.txt`, start `uvicorn app.main:app --host 0.0.0.0 --port $PORT`).
+3. Cuando pida `NVIDIA_API_KEY`, pegá tu key de [build.nvidia.com](https://build.nvidia.com) (es la unica variable secreta, el resto ya viene seteado en el blueprint).
+4. Confirmá que `https://<tu-servicio>.onrender.com/health` responde `{"status":"ok"}`.
+
+Si preferis configurarlo a mano en vez del Blueprint: **New +** → **Web Service**, root directory `backend`, mismos comandos de build/start que arriba, y cargá las variables de [Variables De Entorno](#variables-de-entorno) manualmente.
+
+### Frontend (Vercel)
+
+1. **Add New** → **Project**, importá este repo.
+2. **Root Directory**: `frontend` (Vercel detecta Next.js automaticamente).
+3. Variable de entorno: `NEXT_PUBLIC_API_URL` = `https://<tu-backend-en-render>.onrender.com/api`.
+4. Deploy.
+
+### Notas sobre el deploy publico
+
+- **Almacenamiento efimero**: los proyectos se guardan como JSON en el filesystem del contenedor (`backend/storage`), sin base de datos. En Render esto sobrevive entre requests pero se pierde en cada redeploy o reinicio del servicio — esperable para una demo de portfolio, no para produccion real.
+- **CORS**: `CORS_ORIGINS=*` es intencional (no hay cookies/credenciales, `allow_credentials=False`), asi que anda sin ajustes. Si queres restringirlo a tu dominio de Vercel, cambia esa variable en Render.
+- **Costo/latencia del modelo pesado**: `NIM_FALLBACK_MODEL` (550B parametros) es lento (decenas de segundos a minutos). Solo se usa cuando el modelo rapido falla, pero si tu cuenta de NIM tiene rate limits ajustados, considera sacar el fallback o cambiarlo por uno mas liviano.
+
 ## Endpoints Principales
 
-- `POST /api/uploads`: sube archivos y crea un proyecto temporal.
+- `POST /api/uploads`: sube archivos y crea/actualiza un proyecto.
 - `GET /api/study/{project_id}/topics`: lista temas detectados.
 - `POST /api/study/summary`: genera resumen.
 - `POST /api/study/simple-explanation`: genera explicacion simple.

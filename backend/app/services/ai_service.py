@@ -144,65 +144,81 @@ class AIService:
         if config is None:
             return fallback
 
-        try:
-            from openai import AsyncOpenAI
+        from openai import AsyncOpenAI
 
-            client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            response = await client.chat.completions.create(
-                model=config["model"],
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Eres un tutor de estudio preciso. No inventes informacion.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.2,
-                max_tokens=max_tokens,
-                timeout=settings.ai_timeout_seconds,
-            )
-            return response.choices[0].message.content or fallback
-        except Exception as exc:
-            return f"{fallback}\n\nNota tecnica: no se pudo usar el proveedor de IA ({exc})."
+        client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
+
+        last_error: Exception | None = None
+        for model in config["models"]:
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Eres un tutor de estudio preciso. No inventes informacion.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.2,
+                    max_tokens=max_tokens,
+                    timeout=settings.ai_timeout_seconds,
+                )
+                content = response.choices[0].message.content
+                if content:
+                    return content
+            except Exception as exc:
+                last_error = exc
+
+        return f"{fallback}\n\nNota tecnica: no se pudo usar el proveedor de IA ({last_error})."
 
     async def _complete_json(self, prompt: str, max_tokens: int = 1024) -> dict | None:
-        """Ask the model for a JSON object. Returns None on any failure."""
+        """Ask the model for a JSON object. Returns None on any failure.
+
+        Tries each configured model in order (fast model first, heavier
+        fallback second for NIM) -- both on a hard error and on a reply that
+        doesn't parse as usable JSON, since a model can "succeed" with junk.
+        """
         config = self._client_config()
         if config is None:
             return None
 
-        try:
-            import json
+        from openai import AsyncOpenAI
 
-            from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
+        # Reasoning/"thinking" models burn a chunk of max_tokens on internal
+        # deliberation before ever emitting the JSON; for a short structured
+        # reply we don't need it, so turn it off where the provider supports it.
+        extra_body = (
+            {"chat_template_kwargs": {"enable_thinking": False}}
+            if config["provider"] == "nim"
+            else None
+        )
 
-            client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
-            # Reasoning/"thinking" models burn a chunk of max_tokens on internal
-            # deliberation before ever emitting the JSON; for a short structured
-            # reply we don't need it, so turn it off where the provider supports it.
-            extra_body = (
-                {"chat_template_kwargs": {"enable_thinking": False}}
-                if config["provider"] == "nim"
-                else None
-            )
-            response = await client.chat.completions.create(
-                model=config["model"],
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "Eres un asistente que solo emite JSON valido, sin markdown.",
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=0.1,
-                max_tokens=max_tokens,
-                extra_body=extra_body,
-                timeout=settings.ai_timeout_seconds,
-            )
-            content = response.choices[0].message.content or ""
-            return _extract_json_object(content)
-        except Exception:
-            return None
+        for model in config["models"]:
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "Eres un asistente que solo emite JSON valido, sin markdown.",
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=0.1,
+                    max_tokens=max_tokens,
+                    extra_body=extra_body,
+                    timeout=settings.ai_timeout_seconds,
+                )
+                content = response.choices[0].message.content or ""
+                parsed = _extract_json_object(content)
+                if parsed is not None:
+                    return parsed
+            except Exception:
+                continue
+
+        return None
 
     def _client_config(self) -> dict[str, str | None] | None:
         """Resolve the active AI provider from settings.
@@ -224,18 +240,21 @@ class AIService:
                 "provider": "ollama",
                 "api_key": "ollama",
                 "base_url": f"{settings.ollama_base_url.rstrip('/')}/v1",
-                "model": settings.ollama_model,
+                "models": [settings.ollama_model],
                 "embed_model": settings.ollama_embed_model,
             }
 
         if provider == "nim":
+            # Try the fast model first; if it errors out or times out, fall
+            # back to the heavier one instead of failing the whole request.
+            models = _dedupe([settings.nim_model, settings.nim_fallback_model])
             return {
                 "provider": "nim",
                 # Self-hosted NIM containers ignore the key but the OpenAI SDK
                 # still requires a non-empty string.
                 "api_key": settings.nim_api_key or "not-needed",
                 "base_url": settings.nim_base_url,
-                "model": settings.nim_model,
+                "models": models,
                 "embed_model": settings.nim_embed_model,
             }
 
@@ -246,7 +265,7 @@ class AIService:
                 "provider": "openai",
                 "api_key": settings.openai_api_key,
                 "base_url": settings.openai_base_url or None,
-                "model": settings.openai_chat_model,
+                "models": [settings.openai_chat_model],
                 "embed_model": settings.openai_embed_model,
             }
 
@@ -288,6 +307,16 @@ class AIService:
             + "\n".join(f"- {sentence}" for sentence in sentences)
             + "\n\nPara respuestas mas elaboradas, configura OPENAI_API_KEY en el backend."
         )
+
+
+def _dedupe(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
 
 
 def _extract_json_object(content: str) -> dict | None:
