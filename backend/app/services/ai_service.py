@@ -147,6 +147,7 @@ class AIService:
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
+        extra_body = _disable_thinking(config)
 
         last_error: Exception | None = None
         for model in config["models"]:
@@ -162,6 +163,7 @@ class AIService:
                     ],
                     temperature=0.2,
                     max_tokens=max_tokens,
+                    extra_body=extra_body,
                     timeout=settings.ai_timeout_seconds,
                 )
                 content = response.choices[0].message.content
@@ -186,14 +188,7 @@ class AIService:
         from openai import AsyncOpenAI
 
         client = AsyncOpenAI(api_key=config["api_key"], base_url=config["base_url"])
-        # Reasoning/"thinking" models burn a chunk of max_tokens on internal
-        # deliberation before ever emitting the JSON; for a short structured
-        # reply we don't need it, so turn it off where the provider supports it.
-        extra_body = (
-            {"chat_template_kwargs": {"enable_thinking": False}}
-            if config["provider"] == "nim"
-            else None
-        )
+        extra_body = _disable_thinking(config)
 
         for model in config["models"]:
             try:
@@ -307,6 +302,21 @@ class AIService:
             + "\n".join(f"- {sentence}" for sentence in sentences)
             + "\n\nPara respuestas mas elaboradas, configura OPENAI_API_KEY en el backend."
         )
+
+
+def _disable_thinking(config: dict) -> dict | None:
+    """Turn off reasoning/"thinking" mode where the provider supports it.
+
+    Some NIM models default to emitting their internal chain-of-thought
+    before the actual answer. When they do, that reasoning can eat the
+    whole max_tokens budget (leaving no room for the real answer) or, worse,
+    leak straight into the visible response instead of staying in the
+    separate reasoning_content field. Neither is useful here, so it's
+    disabled for every call.
+    """
+    if config["provider"] == "nim":
+        return {"chat_template_kwargs": {"enable_thinking": False}}
+    return None
 
 
 def _dedupe(values: list[str]) -> list[str]:
