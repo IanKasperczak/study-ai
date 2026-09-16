@@ -11,7 +11,7 @@ class AIService:
             f"Contexto:\n{context}"
         )
         fallback = self._fallback_study_output(action=action, context=context)
-        return await self._complete(prompt=prompt, fallback=fallback, max_tokens=1024)
+        return await self._complete(prompt=prompt, fallback=fallback, max_tokens=1536)
 
     async def answer_question(self, question: str, context: str) -> str:
         prompt = (
@@ -20,7 +20,7 @@ class AIService:
             f"Pregunta: {question}\n\nContexto:\n{context}"
         )
         fallback = self._fallback_chat_answer(question=question, context=context)
-        return await self._complete(prompt=prompt, fallback=fallback, max_tokens=512)
+        return await self._complete(prompt=prompt, fallback=fallback, max_tokens=900)
 
     async def refine_topic_titles(
         self, titles: list[str], document_excerpt: str
@@ -166,8 +166,11 @@ class AIService:
                     extra_body=extra_body,
                     timeout=settings.ai_timeout_seconds,
                 )
-                content = response.choices[0].message.content
+                choice = response.choices[0]
+                content = choice.message.content
                 if content:
+                    if choice.finish_reason == "length":
+                        content = _trim_to_sentence_boundary(content)
                     return content
             except Exception as exc:
                 last_error = exc
@@ -317,6 +320,33 @@ def _disable_thinking(config: dict) -> dict | None:
     if config["provider"] == "nim":
         return {"chat_template_kwargs": {"enable_thinking": False}}
     return None
+
+
+def _trim_to_sentence_boundary(text: str) -> str:
+    """Cut a response that got truncated by max_tokens back to the end of
+    its last complete sentence/paragraph, so it never stops mid-word or
+    mid-phrase. Only called when the API reports finish_reason == "length".
+    """
+    text = text.rstrip()
+    if not text:
+        return text
+
+    last_end = max(text.rfind("."), text.rfind("!"), text.rfind("?"), text.rfind("\n\n"))
+    if last_end != -1:
+        trimmed = text[: last_end + 1].rstrip()
+        # If almost nothing survives (e.g. one stray period near the
+        # start), keep looking for a softer boundary below instead.
+        if len(trimmed) >= len(text) * 0.4:
+            return trimmed
+
+    # No full sentence finished within the token budget at all (can happen
+    # with a very tight max_tokens). Falling back to the raw cutoff would
+    # still end mid-word, so cut at the last complete word instead and mark
+    # it as unfinished rather than pretending it's a finished thought.
+    last_space = text.rfind(" ")
+    if last_space > len(text) * 0.4:
+        return text[:last_space].rstrip() + "..."
+    return text
 
 
 def _dedupe(values: list[str]) -> list[str]:
