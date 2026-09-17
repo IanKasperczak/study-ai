@@ -5,35 +5,25 @@ import type { QuizAttempt, QuizSession, Topic } from "@/lib/types";
 
 type QuizPanelProps = {
   projectId: string | null;
-  topics: Topic[];
   selectedTopicIds: string[];
   session: QuizSession | null;
   isGenerating: boolean;
   error: string | null;
-  attempts: QuizAttempt[];
   onStart: (topicIds: string[]) => void;
   onResume: () => void;
 };
 
 export function QuizPanel({
   projectId,
-  topics,
   selectedTopicIds,
   session,
   isGenerating,
   error,
-  attempts,
   onStart,
   onResume
 }: QuizPanelProps) {
   const inProgress = Boolean(session && !session.graded);
   const canStart = Boolean(projectId) && selectedTopicIds.length > 0 && !isGenerating;
-
-  function topicLabel(topicIdList: string): string {
-    const ids = topicIdList.split(",").filter(Boolean);
-    const titles = ids.map((id) => topics.find((topic) => topic.id === id)?.title ?? id);
-    return titles.join(" + ") || "Tema eliminado";
-  }
 
   return (
     <div className="space-y-2">
@@ -84,38 +74,51 @@ export function QuizPanel({
           {error}
         </div>
       ) : null}
+    </div>
+  );
+}
 
-      {attempts.length ? (
-        <div className="border-t border-slate-800/80 pt-3">
-          <p className="mb-2 text-xs uppercase tracking-[0.14em] text-slate-500">Historial</p>
-          <div className="space-y-1.5">
-            {attempts.slice(0, 8).map((attempt) => (
-              <div
-                key={attempt.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/30 px-2.5 py-1.5 text-xs"
-              >
-                <span className="min-w-0 truncate text-slate-300">
-                  {topicLabel(attempt.subtema_id)}
-                </span>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="font-medium text-slate-200">
-                    {attempt.score}/{attempt.total_questions}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onStart(attempt.subtema_id.split(",").filter(Boolean))}
-                    disabled={!projectId || isGenerating}
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 transition hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
-                    aria-label="Repetir este quiz"
-                  >
-                    <RotateCcw size={13} />
-                  </button>
-                </div>
-              </div>
-            ))}
+type QuizHistoryProps = {
+  projectId: string | null;
+  topics: Topic[];
+  attempts: QuizAttempt[];
+  isGenerating: boolean;
+  onRetake: (topicIds: string[]) => void;
+};
+
+export function QuizHistory({ projectId, topics, attempts, isGenerating, onRetake }: QuizHistoryProps) {
+  if (!attempts.length) return null;
+
+  function topicLabel(topicIdList: string): string {
+    const ids = topicIdList.split(",").filter(Boolean);
+    const titles = ids.map((id) => topics.find((topic) => topic.id === id)?.title ?? id);
+    return titles.join(" + ") || "Tema eliminado";
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {attempts.slice(0, 8).map((attempt) => (
+        <div
+          key={attempt.id}
+          className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/30 px-2.5 py-1.5 text-xs"
+        >
+          <span className="min-w-0 truncate text-slate-300">{topicLabel(attempt.subtema_id)}</span>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="font-medium text-slate-200">
+              {attempt.score}/{attempt.total_questions}
+            </span>
+            <button
+              type="button"
+              onClick={() => onRetake(attempt.subtema_id.split(",").filter(Boolean))}
+              disabled={!projectId || isGenerating}
+              className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 transition hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Repetir este quiz"
+            >
+              <RotateCcw size={13} />
+            </button>
           </div>
         </div>
-      ) : null}
+      ))}
     </div>
   );
 }
