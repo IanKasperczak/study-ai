@@ -57,16 +57,25 @@ export type QuizQuestion = {
 };
 
 export type GenerateQuizResponse = {
-  topic_id: string;
+  topic_ids: string[];
   questions: QuizQuestion[];
 };
 
 export type QuizAttempt = {
   id: number;
   user_id: string;
+  // Comma-joined topic ids (a quiz can span every topic selected in the
+  // sidebar, not just one Subtema) -- split on "," to resolve titles.
   subtema_id: string;
   score: number;
   total_questions: number;
   created_at: string;
+};
+
+export type QuizSession = {
+  topicIds: string[];
+  questions: QuizQuestion[];
+  answers: number[];
+  graded: boolean;
 };
 

@@ -4,13 +4,22 @@ import { motion } from "framer-motion";
 import { ChatPanel } from "@/components/chat-panel";
 import { FileUploader } from "@/components/file-uploader";
 import { PomodoroTimer } from "@/components/pomodoro-timer";
+import { QuizModal } from "@/components/quiz-modal";
 import { StarfieldBackground } from "@/components/starfield-background";
 import { StudyActions } from "@/components/study-actions";
 import { ToolsPanel } from "@/components/tools-panel";
 import { TopicSidebar } from "@/components/topic-sidebar";
+import { generateQuiz, getQuizAttempts, saveQuizAttempt } from "@/lib/api";
 import { useLocalStore, writeLocalStore } from "@/lib/local-store";
-import type { ProjectResponse, StudyActionResponse, Topic } from "@/lib/types";
-import { useMemo, useState } from "react";
+import { computeQuizScore } from "@/lib/quiz-utils";
+import type {
+  ProjectResponse,
+  QuizAttempt,
+  QuizSession,
+  StudyActionResponse,
+  Topic
+} from "@/lib/types";
+import { useEffect, useMemo, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "study-ia-sidebar-collapsed";
 const TOOLS_COLLAPSED_KEY = "study-ia-tools-collapsed";
@@ -31,8 +40,22 @@ export default function HomePage() {
   const [lastProject, setLastProject] = useState<ProjectResponse | null>(null);
   const [latestStudyResult, setLatestStudyResult] = useState<StudyActionResponse | null>(null);
 
+  const [quizSession, setQuizSession] = useState<QuizSession | null>(null);
+  const [isQuizModalOpen, setIsQuizModalOpen] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [quizAttempts, setQuizAttempts] = useState<QuizAttempt[]>([]);
+
   const sidebarCollapsed = useLocalStore(SIDEBAR_COLLAPSED_KEY, false);
   const toolsCollapsed = useLocalStore(TOOLS_COLLAPSED_KEY, true);
+
+  useEffect(() => {
+    getQuizAttempts()
+      .then(setQuizAttempts)
+      .catch(() => {
+        // History is a nice-to-have; a failed fetch shouldn't block the quiz itself.
+      });
+  }, []);
 
   const selectedTopicsLabel = useMemo(() => {
     if (!selectedTopicIds.length) return "Sin seleccion";
@@ -65,6 +88,51 @@ export default function HomePage() {
     setSelectedTopicIds((current) =>
       current.length === topics.length ? [] : topics.map((topic) => topic.id)
     );
+  }
+
+  async function startQuiz(topicIds: string[]) {
+    if (!projectId || !topicIds.length) return;
+
+    setIsGeneratingQuiz(true);
+    setQuizError(null);
+
+    try {
+      const response = await generateQuiz(projectId, topicIds, 10);
+      setQuizSession({
+        topicIds: response.topic_ids,
+        questions: response.questions,
+        answers: new Array(response.questions.length).fill(-1),
+        graded: false
+      });
+      setIsQuizModalOpen(true);
+    } catch (err) {
+      setQuizError(err instanceof Error ? err.message : "No se pudo generar el quiz.");
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  }
+
+  function answerQuizQuestion(questionIndex: number, optionIndex: number) {
+    setQuizSession((current) => {
+      if (!current || current.graded) return current;
+      const answers = [...current.answers];
+      answers[questionIndex] = optionIndex;
+      return { ...current, answers };
+    });
+  }
+
+  async function submitQuiz() {
+    if (!quizSession) return;
+    const score = computeQuizScore(quizSession);
+    setQuizSession({ ...quizSession, graded: true });
+
+    try {
+      const attempt = await saveQuizAttempt(quizSession.topicIds, score, quizSession.questions.length);
+      setQuizAttempts((current) => [attempt, ...current]);
+    } catch {
+      // The graded view is already shown locally; losing history on a failed
+      // save isn't worth blocking or confusing the user with an error here.
+    }
   }
 
   return (
@@ -123,9 +191,24 @@ export default function HomePage() {
           onToggleCollapsed={() => writeLocalStore(TOOLS_COLLAPSED_KEY, !toolsCollapsed)}
           projectId={projectId}
           topics={topics}
+          selectedTopicIds={selectedTopicIds}
           latestStudyResult={latestStudyResult}
+          quizSession={quizSession}
+          isGeneratingQuiz={isGeneratingQuiz}
+          quizError={quizError}
+          quizAttempts={quizAttempts}
+          onStartQuiz={startQuiz}
+          onResumeQuiz={() => setIsQuizModalOpen(true)}
         />
       </div>
+
+      <QuizModal
+        open={isQuizModalOpen}
+        session={quizSession}
+        onClose={() => setIsQuizModalOpen(false)}
+        onAnswer={answerQuizQuestion}
+        onSubmit={submitQuiz}
+      />
 
       <PomodoroTimer />
     </main>

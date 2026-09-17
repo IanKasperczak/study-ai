@@ -134,17 +134,20 @@ class QuizQuestion(BaseModel):
 
 class GenerateQuizRequest(BaseModel):
     project_id: str
-    topic_id: str
-    num_questions: int = 5
+    topic_ids: list[str]
+    num_questions: int = 10
 
 
 class GenerateQuizResponse(BaseModel):
-    topic_id: str
+    topic_ids: list[str]
     questions: list[QuizQuestion] = Field(default_factory=list)
 
 
 class SaveQuizAttemptRequest(BaseModel):
-    subtema_id: str
+    # Stored joined by commas into quiz_attempts.subtema_id (see quiz_store.py)
+    # -- the column keeps its original single-id name/shape, but a quiz can
+    # now span every topic selected in the sidebar, not just one Subtema.
+    topic_ids: list[str]
     score: int
     total_questions: int
 

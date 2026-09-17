@@ -1,24 +1,22 @@
 "use client";
 
-import {
-  BookMarked,
-  ChevronLeft,
-  ChevronsLeft,
-  ChevronsRight,
-  HelpCircle,
-  Layers,
-  Mic,
-  Wand2
-} from "lucide-react";
+import { BookMarked, ChevronLeft, ChevronsLeft, ChevronsRight, Layers, Mic, Wand2 } from "lucide-react";
 import { QuizPanel } from "@/components/quiz-panel";
-import type { StudyActionResponse, Topic } from "@/lib/types";
+import type { QuizAttempt, QuizSession, StudyActionResponse, Topic } from "@/lib/types";
 
 type ToolsPanelProps = {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   projectId: string | null;
   topics: Topic[];
+  selectedTopicIds: string[];
   latestStudyResult: StudyActionResponse | null;
+  quizSession: QuizSession | null;
+  isGeneratingQuiz: boolean;
+  quizError: string | null;
+  quizAttempts: QuizAttempt[];
+  onStartQuiz: (topicIds: string[]) => void;
+  onResumeQuiz: () => void;
 };
 
 const PLACEHOLDER_TOOLS = [
@@ -39,7 +37,14 @@ export function ToolsPanel({
   onToggleCollapsed,
   projectId,
   topics,
-  latestStudyResult
+  selectedTopicIds,
+  latestStudyResult,
+  quizSession,
+  isGeneratingQuiz,
+  quizError,
+  quizAttempts,
+  onStartQuiz,
+  onResumeQuiz
 }: ToolsPanelProps) {
   if (collapsed) {
     return (
@@ -93,13 +98,17 @@ export function ToolsPanel({
           </div>
         ) : null}
 
-        <div>
-          <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-slate-500">
-            <HelpCircle size={13} />
-            Quiz
-          </p>
-          <QuizPanel projectId={projectId} topics={topics} />
-        </div>
+        <QuizPanel
+          projectId={projectId}
+          topics={topics}
+          selectedTopicIds={selectedTopicIds}
+          session={quizSession}
+          isGenerating={isGeneratingQuiz}
+          error={quizError}
+          attempts={quizAttempts}
+          onStart={onStartQuiz}
+          onResume={onResumeQuiz}
+        />
 
         {PLACEHOLDER_TOOLS.map((tool) => (
           <div

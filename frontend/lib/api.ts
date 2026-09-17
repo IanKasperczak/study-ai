@@ -77,25 +77,25 @@ export async function askContextualChat(
 
 export async function generateQuiz(
   projectId: string,
-  topicId: string,
-  numQuestions = 5
+  topicIds: string[],
+  numQuestions = 10
 ): Promise<GenerateQuizResponse> {
   return request<GenerateQuizResponse>("/quiz/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ project_id: projectId, topic_id: topicId, num_questions: numQuestions })
+    body: JSON.stringify({ project_id: projectId, topic_ids: topicIds, num_questions: numQuestions })
   });
 }
 
 export async function saveQuizAttempt(
-  subtemaId: string,
+  topicIds: string[],
   score: number,
   totalQuestions: number
 ): Promise<QuizAttempt> {
   return request<QuizAttempt>("/quiz/attempts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ subtema_id: subtemaId, score, total_questions: totalQuestions })
+    body: JSON.stringify({ topic_ids: topicIds, score, total_questions: totalQuestions })
   });
 }
 

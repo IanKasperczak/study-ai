@@ -28,15 +28,16 @@ async def generate_quiz(
         raise HTTPException(status_code=404, detail="Project not found.")
 
     # Same chunk-retrieval building block used for summaries/explanations:
-    # the Subtema already knows exactly which chunks are its own, so no
-    # semantic search is needed here, just the existing context assembly.
+    # every topic already knows exactly which chunks are its own, so no
+    # semantic search is needed here, just the existing context assembly
+    # across whatever topics are currently selected in the sidebar.
     selected_chunks = rag_service.get_chunks_for_topics(
         project=project,
-        topic_ids=[request.topic_id],
-        limit=8,
+        topic_ids=request.topic_ids,
+        limit=12,
     )
     if not selected_chunks:
-        raise HTTPException(status_code=422, detail="No chunks found for the selected topic.")
+        raise HTTPException(status_code=422, detail="No chunks found for the selected topics.")
 
     context = rag_service.build_context(selected_chunks)
     questions = await ai_service.generate_quiz(context=context, num_questions=request.num_questions)
@@ -47,7 +48,7 @@ async def generate_quiz(
         )
 
     return GenerateQuizResponse(
-        topic_id=request.topic_id,
+        topic_ids=request.topic_ids,
         questions=[QuizQuestion(**question) for question in questions],
     )
 
@@ -59,7 +60,7 @@ def save_quiz_attempt(
 ) -> QuizAttempt:
     attempt = quiz_store.record_attempt(
         user_id=user_id,
-        subtema_id=request.subtema_id,
+        subtema_id=",".join(request.topic_ids),
         score=request.score,
         total_questions=request.total_questions,
     )

@@ -1,194 +1,83 @@
 "use client";
 
-import { Check, HelpCircle, Loader2, RotateCcw, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { generateQuiz, getQuizAttempts, saveQuizAttempt } from "@/lib/api";
-import type { QuizAttempt, QuizQuestion, Topic } from "@/lib/types";
+import { HelpCircle, Loader2, RotateCcw } from "lucide-react";
+import type { QuizAttempt, QuizSession, Topic } from "@/lib/types";
 
 type QuizPanelProps = {
   projectId: string | null;
   topics: Topic[];
+  selectedTopicIds: string[];
+  session: QuizSession | null;
+  isGenerating: boolean;
+  error: string | null;
+  attempts: QuizAttempt[];
+  onStart: (topicIds: string[]) => void;
+  onResume: () => void;
 };
 
-export function QuizPanel({ projectId, topics }: QuizPanelProps) {
-  const [selectedTopicId, setSelectedTopicId] = useState("");
-  const [questions, setQuestions] = useState<QuizQuestion[] | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
-  const [graded, setGraded] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
+export function QuizPanel({
+  projectId,
+  topics,
+  selectedTopicIds,
+  session,
+  isGenerating,
+  error,
+  attempts,
+  onStart,
+  onResume
+}: QuizPanelProps) {
+  const inProgress = Boolean(session && !session.graded);
+  const canStart = Boolean(projectId) && selectedTopicIds.length > 0 && !isGenerating;
 
-  useEffect(() => {
-    getQuizAttempts()
-      .then(setAttempts)
-      .catch(() => {
-        // History is a nice-to-have; a failed fetch shouldn't block the quiz itself.
-      });
-  }, []);
-
-  const effectiveTopicId = selectedTopicId || topics[0]?.id || "";
-
-  async function handleGenerate() {
-    if (!projectId || !effectiveTopicId) return;
-
-    setIsGenerating(true);
-    setError(null);
-    setQuestions(null);
-    setGraded(false);
-
-    try {
-      const response = await generateQuiz(projectId, effectiveTopicId);
-      setQuestions(response.questions);
-      setAnswers(new Array(response.questions.length).fill(-1));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "No se pudo generar el quiz.");
-    } finally {
-      setIsGenerating(false);
-    }
-  }
-
-  function selectAnswer(questionIndex: number, optionIndex: number) {
-    if (graded) return;
-    setAnswers((current) => {
-      const next = [...current];
-      next[questionIndex] = optionIndex;
-      return next;
-    });
-  }
-
-  const score = (questions ?? []).reduce(
-    (total, question, index) => total + (answers[index] === question.correct_index ? 1 : 0),
-    0
-  );
-  const allAnswered = questions !== null && answers.every((answer) => answer !== -1);
-
-  async function handleSubmit() {
-    if (!questions || !effectiveTopicId) return;
-    setGraded(true);
-
-    try {
-      const attempt = await saveQuizAttempt(effectiveTopicId, score, questions.length);
-      setAttempts((current) => [attempt, ...current]);
-    } catch {
-      // The graded view is already shown locally; losing history on a failed
-      // save isn't worth blocking or confusing the user with an error here.
-    }
-  }
-
-  function handleReset() {
-    setQuestions(null);
-    setAnswers([]);
-    setGraded(false);
-    setError(null);
-  }
-
-  function topicTitle(topicId: string): string {
-    return topics.find((topic) => topic.id === topicId)?.title ?? topicId;
+  function topicLabel(topicIdList: string): string {
+    const ids = topicIdList.split(",").filter(Boolean);
+    const titles = ids.map((id) => topics.find((topic) => topic.id === id)?.title ?? id);
+    return titles.join(" + ") || "Tema eliminado";
   }
 
   return (
-    <div className="space-y-3">
-      {!questions ? (
-        <div className="space-y-2">
-          <select
-            value={effectiveTopicId}
-            onChange={(event) => setSelectedTopicId(event.target.value)}
-            disabled={!topics.length || isGenerating}
-            className="h-9 w-full rounded-md border border-slate-700 bg-slate-900 px-2 text-sm text-slate-100 outline-none transition focus:border-sky-300/70 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {topics.length ? (
-              topics.map((topic) => (
-                <option key={topic.id} value={topic.id}>
-                  {topic.title}
-                </option>
-              ))
-            ) : (
-              <option value="">No hay temas cargados</option>
-            )}
-          </select>
-          <button
-            type="button"
-            onClick={handleGenerate}
-            disabled={!projectId || !effectiveTopicId || isGenerating}
-            className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-emerald-300 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+    <div className="space-y-2">
+      <button
+        type="button"
+        onClick={() => (inProgress ? onResume() : onStart(selectedTopicIds))}
+        disabled={inProgress ? false : !canStart}
+        className={`relative w-full rounded-lg border p-3 text-left transition disabled:cursor-not-allowed disabled:opacity-50 ${
+          inProgress
+            ? "border-sky-300/50 bg-sky-300/5 hover:border-sky-300/70"
+            : "border-emerald-300/40 bg-emerald-300/5 hover:border-emerald-300/60"
+        }`}
+      >
+        <span
+          className={`absolute right-2 top-2 rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide ${
+            inProgress
+              ? "border-sky-300/50 bg-slate-900 text-sky-200"
+              : "border-emerald-300/50 bg-slate-900 text-emerald-200"
+          }`}
+        >
+          {inProgress ? "En progreso" : "Disponible"}
+        </span>
+        <div className="flex items-start gap-3 pr-20">
+          <div
+            className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-md border ${
+              inProgress ? "border-sky-300/50 text-sky-300" : "border-emerald-300/50 text-emerald-300"
+            }`}
           >
             {isGenerating ? <Loader2 size={15} className="animate-spin" /> : <HelpCircle size={15} />}
-            Generar quiz
-          </button>
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-medium text-white">
+              {inProgress ? "Continuar quiz" : "Quiz"}
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-slate-400">
+              {inProgress
+                ? "Tenes un quiz sin terminar."
+                : selectedTopicIds.length
+                  ? `10 preguntas sobre ${selectedTopicIds.length} tema(s) seleccionado(s).`
+                  : "Selecciona temas en la barra de la izquierda para generar uno."}
+            </p>
+          </div>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {questions.map((question, questionIndex) => (
-            <div key={questionIndex} className="rounded-lg border border-slate-800 bg-slate-950/35 p-3">
-              <p className="text-sm font-medium text-white">
-                {questionIndex + 1}. {question.question}
-              </p>
-              <div className="mt-2 space-y-1.5">
-                {question.options.map((option, optionIndex) => {
-                  const isSelected = answers[questionIndex] === optionIndex;
-                  const isCorrectOption = question.correct_index === optionIndex;
-                  let stateClass = "border-slate-800 bg-slate-950/40 hover:border-slate-600";
-                  if (graded && isCorrectOption) {
-                    stateClass = "border-emerald-300/60 bg-emerald-300/10";
-                  } else if (graded && isSelected && !isCorrectOption) {
-                    stateClass = "border-red-400/50 bg-red-950/30";
-                  } else if (!graded && isSelected) {
-                    stateClass = "border-sky-300/60 bg-sky-300/10";
-                  }
-
-                  return (
-                    <button
-                      key={optionIndex}
-                      type="button"
-                      onClick={() => selectAnswer(questionIndex, optionIndex)}
-                      disabled={graded}
-                      className={`flex w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs text-slate-200 transition disabled:cursor-default ${stateClass}`}
-                    >
-                      {graded && isCorrectOption ? (
-                        <Check size={13} className="shrink-0 text-emerald-300" />
-                      ) : graded && isSelected ? (
-                        <X size={13} className="shrink-0 text-red-300" />
-                      ) : (
-                        <span className="h-3 w-3 shrink-0 rounded-full border border-slate-600" />
-                      )}
-                      <span className="min-w-0">{option}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              {graded ? (
-                <p className="mt-2 text-xs leading-5 text-slate-400">{question.explanation}</p>
-              ) : null}
-            </div>
-          ))}
-
-          {graded ? (
-            <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-3 text-center">
-              <p className="text-sm font-semibold text-white">
-                Resultado: {score} / {questions.length}
-              </p>
-              <button
-                type="button"
-                onClick={handleReset}
-                className="mt-2 inline-flex h-8 items-center gap-2 rounded-md border border-slate-700 px-3 text-xs text-slate-200 transition hover:border-sky-300/50"
-              >
-                <RotateCcw size={13} />
-                Otro quiz
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={!allAnswered}
-              className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-emerald-300 text-sm font-semibold text-slate-950 transition hover:bg-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Corregir
-            </button>
-          )}
-        </div>
-      )}
+      </button>
 
       {error ? (
         <div className="rounded-md border border-red-400/30 bg-red-950/35 px-3 py-2 text-xs text-red-100">
@@ -200,17 +89,28 @@ export function QuizPanel({ projectId, topics }: QuizPanelProps) {
         <div className="border-t border-slate-800/80 pt-3">
           <p className="mb-2 text-xs uppercase tracking-[0.14em] text-slate-500">Historial</p>
           <div className="space-y-1.5">
-            {attempts.slice(0, 5).map((attempt) => (
+            {attempts.slice(0, 8).map((attempt) => (
               <div
                 key={attempt.id}
                 className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/30 px-2.5 py-1.5 text-xs"
               >
                 <span className="min-w-0 truncate text-slate-300">
-                  {topicTitle(attempt.subtema_id)}
+                  {topicLabel(attempt.subtema_id)}
                 </span>
-                <span className="shrink-0 font-medium text-slate-200">
-                  {attempt.score}/{attempt.total_questions}
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="font-medium text-slate-200">
+                    {attempt.score}/{attempt.total_questions}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onStart(attempt.subtema_id.split(",").filter(Boolean))}
+                    disabled={!projectId || isGenerating}
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 transition hover:text-sky-300 disabled:cursor-not-allowed disabled:opacity-40"
+                    aria-label="Repetir este quiz"
+                  >
+                    <RotateCcw size={13} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

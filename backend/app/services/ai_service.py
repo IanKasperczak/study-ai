@@ -108,7 +108,7 @@ class AIService:
                 valid[index - 1] = False
         return valid
 
-    async def generate_quiz(self, context: str, num_questions: int = 5) -> list[dict] | None:
+    async def generate_quiz(self, context: str, num_questions: int = 10) -> list[dict] | None:
         """Generate a multiple-choice quiz from a Subtema's context (the same
         chunk context assembled by rag_service.build_context for summaries
         and chat). Returns a list of {question, options, correct_index,
@@ -128,7 +128,10 @@ class AIService:
             f"Contexto:\n{context}"
         )
 
-        payload = await self._complete_json(prompt, max_tokens=2048)
+        # ~200 tokens/question (question + 4 options + explanation) is a
+        # reasonable per-question budget; scale with num_questions instead of
+        # a flat cap so 10 questions don't get cut off like the old flat 2048.
+        payload = await self._complete_json(prompt, max_tokens=max(2048, num_questions * 220))
         if payload is None:
             return None
 
