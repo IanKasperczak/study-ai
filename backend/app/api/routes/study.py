@@ -1,5 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.deps import get_user_id
 from app.models.schemas import StudyActionRequest, StudyActionResponse, Topic
 from app.services.ai_service import ai_service
 from app.services.rag_service import rag_service
@@ -9,7 +12,7 @@ router = APIRouter()
 
 
 @router.get("/{project_id}/topics", response_model=list[Topic])
-def get_topics(project_id: str) -> list[Topic]:
+def get_topics(project_id: str, user_id: Annotated[str, Depends(get_user_id)]) -> list[Topic]:
     project = study_store.get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")
@@ -17,7 +20,9 @@ def get_topics(project_id: str) -> list[Topic]:
 
 
 @router.post("/summary", response_model=StudyActionResponse)
-async def generate_summary(request: StudyActionRequest) -> StudyActionResponse:
+async def generate_summary(
+    request: StudyActionRequest, user_id: Annotated[str, Depends(get_user_id)]
+) -> StudyActionResponse:
     return await _run_study_action(
         request=request,
         action="summary",
@@ -27,7 +32,9 @@ async def generate_summary(request: StudyActionRequest) -> StudyActionResponse:
 
 
 @router.post("/simple-explanation", response_model=StudyActionResponse)
-async def generate_simple_explanation(request: StudyActionRequest) -> StudyActionResponse:
+async def generate_simple_explanation(
+    request: StudyActionRequest, user_id: Annotated[str, Depends(get_user_id)]
+) -> StudyActionResponse:
     return await _run_study_action(
         request=request,
         action="simple_explanation",

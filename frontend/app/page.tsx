@@ -9,7 +9,7 @@ import { StudyActions } from "@/components/study-actions";
 import { ToolsPanel } from "@/components/tools-panel";
 import { TopicSidebar } from "@/components/topic-sidebar";
 import { useLocalStore, writeLocalStore } from "@/lib/local-store";
-import type { ProjectResponse, Topic } from "@/lib/types";
+import type { ProjectResponse, StudyActionResponse, Topic } from "@/lib/types";
 import { useMemo, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "study-ia-sidebar-collapsed";
@@ -29,6 +29,7 @@ export default function HomePage() {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [selectedTopicIds, setSelectedTopicIds] = useState<string[]>([]);
   const [lastProject, setLastProject] = useState<ProjectResponse | null>(null);
+  const [latestStudyResult, setLatestStudyResult] = useState<StudyActionResponse | null>(null);
 
   const sidebarCollapsed = useLocalStore(SIDEBAR_COLLAPSED_KEY, false);
   const toolsCollapsed = useLocalStore(TOOLS_COLLAPSED_KEY, true);
@@ -109,13 +110,20 @@ export default function HomePage() {
             </section>
           ) : null}
 
-          <StudyActions projectId={projectId} selectedTopicIds={selectedTopicIds} />
+          <StudyActions
+            projectId={projectId}
+            selectedTopicIds={selectedTopicIds}
+            onResult={setLatestStudyResult}
+          />
           <ChatPanel projectId={projectId} selectedTopicIds={selectedTopicIds} />
         </motion.section>
 
         <ToolsPanel
           collapsed={toolsCollapsed}
           onToggleCollapsed={() => writeLocalStore(TOOLS_COLLAPSED_KEY, !toolsCollapsed)}
+          projectId={projectId}
+          topics={topics}
+          latestStudyResult={latestStudyResult}
         />
       </div>
 

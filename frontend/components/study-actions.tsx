@@ -8,9 +8,10 @@ import type { StudyActionResponse } from "@/lib/types";
 type StudyActionsProps = {
   projectId: string | null;
   selectedTopicIds: string[];
+  onResult?: (result: StudyActionResponse) => void;
 };
 
-export function StudyActions({ projectId, selectedTopicIds }: StudyActionsProps) {
+export function StudyActions({ projectId, selectedTopicIds, onResult }: StudyActionsProps) {
   const [result, setResult] = useState<StudyActionResponse | null>(null);
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function StudyActions({ projectId, selectedTopicIds }: StudyActionsProps)
     try {
       const response = await generateStudyAction(endpoint, projectId, selectedTopicIds);
       setResult(response);
+      onResult?.(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo generar el contenido.");
     } finally {

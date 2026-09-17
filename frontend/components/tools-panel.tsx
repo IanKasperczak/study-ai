@@ -1,13 +1,27 @@
 "use client";
 
-import { ChevronLeft, ChevronsLeft, ChevronsRight, HelpCircle, Layers, Mic, Wand2 } from "lucide-react";
+import {
+  BookMarked,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
+  HelpCircle,
+  Layers,
+  Mic,
+  Wand2
+} from "lucide-react";
+import { QuizPanel } from "@/components/quiz-panel";
+import type { StudyActionResponse, Topic } from "@/lib/types";
 
 type ToolsPanelProps = {
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  projectId: string | null;
+  topics: Topic[];
+  latestStudyResult: StudyActionResponse | null;
 };
 
-const TOOLS = [
+const PLACEHOLDER_TOOLS = [
   {
     icon: Mic,
     label: "Voz y audio",
@@ -17,15 +31,16 @@ const TOOLS = [
     icon: Layers,
     label: "Flashcards",
     description: "Generar tarjetas de repaso a partir de los temas."
-  },
-  {
-    icon: HelpCircle,
-    label: "Quiz",
-    description: "Ponerte a prueba con preguntas del material."
   }
 ] as const;
 
-export function ToolsPanel({ collapsed, onToggleCollapsed }: ToolsPanelProps) {
+export function ToolsPanel({
+  collapsed,
+  onToggleCollapsed,
+  projectId,
+  topics,
+  latestStudyResult
+}: ToolsPanelProps) {
   if (collapsed) {
     return (
       <aside className="panel flex h-14 w-full items-center justify-between rounded-lg px-3 md:h-full md:w-14 md:flex-col md:justify-start md:gap-4 md:py-4">
@@ -44,7 +59,7 @@ export function ToolsPanel({ collapsed, onToggleCollapsed }: ToolsPanelProps) {
   }
 
   return (
-    <aside className="panel flex h-[260px] min-h-0 flex-col rounded-lg md:h-full md:w-72">
+    <aside className="panel flex h-[420px] min-h-0 flex-col rounded-lg md:h-full md:w-72">
       <div className="flex items-center justify-between gap-3 border-b border-slate-800/80 p-4">
         <div className="flex items-center gap-2">
           <Wand2 size={18} className="text-violet-300" />
@@ -62,8 +77,31 @@ export function ToolsPanel({ collapsed, onToggleCollapsed }: ToolsPanelProps) {
         </button>
       </div>
 
-      <div className="thin-scrollbar min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-        {TOOLS.map((tool) => (
+      <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+        {latestStudyResult ? (
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+              <BookMarked size={13} />
+              Actividad reciente
+            </p>
+            <div className="rounded-lg border border-slate-800 bg-slate-950/35 p-3">
+              <h3 className="text-sm font-medium text-white">{latestStudyResult.title}</h3>
+              <p className="mt-1 line-clamp-3 text-xs leading-5 text-slate-400">
+                {latestStudyResult.content}
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        <div>
+          <p className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.14em] text-slate-500">
+            <HelpCircle size={13} />
+            Quiz
+          </p>
+          <QuizPanel projectId={projectId} topics={topics} />
+        </div>
+
+        {PLACEHOLDER_TOOLS.map((tool) => (
           <div
             key={tool.label}
             className="relative rounded-lg border border-slate-800 bg-slate-950/35 p-3 opacity-70"

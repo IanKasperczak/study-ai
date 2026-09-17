@@ -1,5 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
 
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.core.deps import get_user_id
 from app.models.schemas import ChatRequest, ChatResponse, SourceChunk
 from app.services.ai_service import ai_service
 from app.services.rag_service import rag_service
@@ -9,7 +12,9 @@ router = APIRouter()
 
 
 @router.post("", response_model=ChatResponse)
-async def chat_with_project(request: ChatRequest) -> ChatResponse:
+async def chat_with_project(
+    request: ChatRequest, user_id: Annotated[str, Depends(get_user_id)]
+) -> ChatResponse:
     project = study_store.get_project(request.project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found.")

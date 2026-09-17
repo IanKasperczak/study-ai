@@ -108,3 +108,51 @@ class AiTopicTree(BaseModel):
 # terminating.
 class AiInvalidTopicIndices(BaseModel):
     invalid_indices: list[int] = Field(default_factory=list)
+
+
+# Structured output expected from the AI when generating a multiple-choice
+# quiz from a Subtema's chunks.
+class AiQuizQuestion(BaseModel):
+    question: str
+    options: list[str] = Field(default_factory=list)
+    correct_index: int = 0
+    explanation: str = ""
+
+
+class AiQuiz(BaseModel):
+    questions: list[AiQuizQuestion] = Field(default_factory=list)
+
+
+class QuizQuestion(BaseModel):
+    """A quiz question as served to the client."""
+
+    question: str
+    options: list[str]
+    correct_index: int
+    explanation: str = ""
+
+
+class GenerateQuizRequest(BaseModel):
+    project_id: str
+    topic_id: str
+    num_questions: int = 5
+
+
+class GenerateQuizResponse(BaseModel):
+    topic_id: str
+    questions: list[QuizQuestion] = Field(default_factory=list)
+
+
+class SaveQuizAttemptRequest(BaseModel):
+    subtema_id: str
+    score: int
+    total_questions: int
+
+
+class QuizAttempt(BaseModel):
+    id: int
+    user_id: str
+    subtema_id: str
+    score: int
+    total_questions: int
+    created_at: str

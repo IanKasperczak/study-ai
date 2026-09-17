@@ -49,3 +49,24 @@ export type ChatMessage = {
   sources?: SourceChunk[];
 };
 
+export type QuizQuestion = {
+  question: string;
+  options: string[];
+  correct_index: number;
+  explanation: string;
+};
+
+export type GenerateQuizResponse = {
+  topic_id: string;
+  questions: QuizQuestion[];
+};
+
+export type QuizAttempt = {
+  id: number;
+  user_id: string;
+  subtema_id: string;
+  score: number;
+  total_questions: number;
+  created_at: string;
+};
+

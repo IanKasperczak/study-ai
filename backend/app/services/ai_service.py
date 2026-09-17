@@ -108,6 +108,48 @@ class AIService:
                 valid[index - 1] = False
         return valid
 
+    async def generate_quiz(self, context: str, num_questions: int = 5) -> list[dict] | None:
+        """Generate a multiple-choice quiz from a Subtema's context (the same
+        chunk context assembled by rag_service.build_context for summaries
+        and chat). Returns a list of {question, options, correct_index,
+        explanation} dicts, or None when the provider is unavailable or the
+        reply isn't usable JSON -- callers decide the user-facing fallback.
+        """
+        num_questions = max(1, min(num_questions, 10))
+        prompt = (
+            f"Genera {num_questions} preguntas de opcion multiple para estudiar, "
+            "basadas UNICAMENTE en el contexto provisto. Cada pregunta debe tener "
+            "exactamente 4 opciones, con una sola correcta, y una explicacion breve "
+            "de por que esa es la respuesta correcta.\n"
+            "Responde SOLO con JSON compacto, sin explicaciones fuera del JSON.\n"
+            'Formato: {"questions": [{"question": "...", "options": ["...", "...", "...", "..."], '
+            '"correct_index": 0, "explanation": "..."}]}\n'
+            "correct_index es la posicion (empezando en 0) de la opcion correcta dentro de options.\n\n"
+            f"Contexto:\n{context}"
+        )
+
+        payload = await self._complete_json(prompt, max_tokens=2048)
+        if payload is None:
+            return None
+
+        quiz = _parse_quiz(payload)
+        if quiz is None or not quiz.questions:
+            return None
+
+        questions = []
+        for item in quiz.questions:
+            if len(item.options) < 2 or not (0 <= item.correct_index < len(item.options)):
+                continue
+            questions.append(
+                {
+                    "question": item.question,
+                    "options": item.options,
+                    "correct_index": item.correct_index,
+                    "explanation": item.explanation,
+                }
+            )
+        return questions or None
+
     async def embed_texts(self, texts: list[str], input_type: str) -> list[list[float]] | None:
         """Embed a batch of texts with the active provider's embedding model.
 
@@ -392,6 +434,17 @@ def _parse_invalid_indices(payload: dict) -> list[int] | None:
         from app.models.schemas import AiInvalidTopicIndices
 
         return AiInvalidTopicIndices.model_validate(payload).invalid_indices
+    except (ValidationError, ValueError):
+        return None
+
+
+def _parse_quiz(payload: dict):
+    try:
+        from pydantic import ValidationError
+
+        from app.models.schemas import AiQuiz
+
+        return AiQuiz.model_validate(payload)
     except (ValidationError, ValueError):
         return None
 

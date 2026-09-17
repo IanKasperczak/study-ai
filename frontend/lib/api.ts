@@ -1,11 +1,23 @@
-import type { ChatResponse, ProjectResponse, StudyActionResponse } from "./types";
+import type {
+  ChatResponse,
+  GenerateQuizResponse,
+  ProjectResponse,
+  QuizAttempt,
+  StudyActionResponse
+} from "./types";
+import { getUserId } from "./user-id";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  // Anonymous per-device id on every request (see lib/user-id.ts) -- no
+  // login, just lets per-device data like quiz history persist.
+  const headers = new Headers(init?.headers);
+  headers.set("X-User-Id", getUserId());
+
   let response: Response;
   try {
-    response = await fetch(`${API_BASE_URL}${path}`, init);
+    response = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
   } catch (err) {
     if (err instanceof TypeError) {
       throw new Error(
@@ -61,4 +73,32 @@ export async function askContextualChat(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ project_id: projectId, message, topic_ids: topicIds })
   });
+}
+
+export async function generateQuiz(
+  projectId: string,
+  topicId: string,
+  numQuestions = 5
+): Promise<GenerateQuizResponse> {
+  return request<GenerateQuizResponse>("/quiz/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ project_id: projectId, topic_id: topicId, num_questions: numQuestions })
+  });
+}
+
+export async function saveQuizAttempt(
+  subtemaId: string,
+  score: number,
+  totalQuestions: number
+): Promise<QuizAttempt> {
+  return request<QuizAttempt>("/quiz/attempts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ subtema_id: subtemaId, score, total_questions: totalQuestions })
+  });
+}
+
+export async function getQuizAttempts(): Promise<QuizAttempt[]> {
+  return request<QuizAttempt[]>("/quiz/attempts");
 }

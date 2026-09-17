@@ -1,10 +1,12 @@
 import asyncio
 from pathlib import Path
+from typing import Annotated
 from uuid import uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
 from app.core.config import get_settings
+from app.core.deps import get_user_id
 from app.models.schemas import DocumentFile, ProjectResponse
 from app.processors.chunker import chunk_text_with_offsets
 from app.processors.docx_processor import extract_docx
@@ -23,6 +25,7 @@ SUPPORTED_EXTENSIONS = {".pdf", ".docx", ".txt", ".md"}
 
 @router.post("", response_model=ProjectResponse)
 async def upload_files(
+    user_id: Annotated[str, Depends(get_user_id)],
     files: list[UploadFile] = File(...),
     project_id: str | None = None,
 ) -> ProjectResponse:

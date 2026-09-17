@@ -35,6 +35,7 @@ class Settings:
     storage_dir: Path
     upload_dir: Path
     projects_dir: Path
+    db_path: Path
     openai_api_key: str
     openai_chat_model: str
     openai_embed_model: str
@@ -56,10 +57,12 @@ def get_settings() -> Settings:
     storage_dir = _resolve_env_path(os.getenv("STORAGE_DIR"), BACKEND_DIR / "storage")
     upload_dir = _resolve_env_path(os.getenv("UPLOAD_DIR"), storage_dir / "uploads")
     projects_dir = _resolve_env_path(os.getenv("PROJECTS_DIR"), storage_dir / "projects")
+    db_path = _resolve_env_path(os.getenv("DB_PATH"), storage_dir / "study_ai.db")
 
     # The MVP keeps state local and temporary, so these folders are created on boot.
     upload_dir.mkdir(parents=True, exist_ok=True)
     projects_dir.mkdir(parents=True, exist_ok=True)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
 
     return Settings(
         project_name=os.getenv("PROJECT_NAME", "Project Study IA"),
@@ -70,6 +73,7 @@ def get_settings() -> Settings:
         storage_dir=storage_dir,
         upload_dir=upload_dir,
         projects_dir=projects_dir,
+        db_path=db_path,
         openai_api_key=os.getenv("OPENAI_API_KEY", ""),
         openai_chat_model=os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
         openai_embed_model=os.getenv("OPENAI_EMBED_MODEL", "text-embedding-3-small"),
