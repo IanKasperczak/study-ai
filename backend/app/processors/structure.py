@@ -29,7 +29,7 @@ _WORD_NUMBERED = re.compile(
 _CAPS_CANDIDATE = re.compile(r"^[\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ][\dA-ZÁÉÍÓÚÑÜÀÈÌÒÙ \-–—:·'’”]{2,63}$")
 _SENTENCE_END = re.compile(r"[.!?]([\s\u2026\"'»)\]]*)$")
 _PAGE_MARKER = re.compile(
-    r"^\s*(?:page|p[aá]g\.?|pag[- ]?[aá]gina|fol\.?)?[ \t]*\d{1,4}[ \t]*\d*$",
+    r"^\s*(?:page|p[aá]g\.?|p[aá]gina|fol\.?)?[ \t]*\d{1,4}[ \t]*\d*$",
     re.IGNORECASE,
 )
 _URL_PATTERN = re.compile(r"https?://|www\.")

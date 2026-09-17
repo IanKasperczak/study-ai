@@ -4,10 +4,12 @@ Aplicacion web para estudiar con ayuda de inteligencia artificial. Permite carga
 
 ## Demo
 
-**App:** [URL DEL DEPLOY EN VERCEL]
-**API:** [URL DEL DEPLOY EN RENDER]
+**App:** [study-ai-hazel.vercel.app](https://study-ai-hazel.vercel.app/)
+**API:** [study-ai-backend-gmd2.onrender.com](https://study-ai-backend-gmd2.onrender.com)
 
-> La demo publica corre con almacenamiento efimero (ver [Notas sobre el deploy](#notas-sobre-el-deploy-publico)): los documentos subidos pueden perderse si el backend se reinicia.
+> El backend esta en el plan free de Render: si nadie lo uso en 15 minutos se duerme, y el primer request tarda ~1 minuto en despertarlo. Ademas corre con almacenamiento efimero (ver [Notas sobre el deploy](#notas-sobre-el-deploy-publico)): los documentos subidos pueden perderse si el backend se reinicia.
+
+![Vista principal: arbol de temas, chat contextual y Pomodoro](docs/screenshots/dashboard.png)
 
 ## Estado Del Proyecto
 
