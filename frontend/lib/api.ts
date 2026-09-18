@@ -3,6 +3,7 @@ import type {
   GenerateQuizResponse,
   ProjectResponse,
   QuizAttempt,
+  QuizQuestion,
   StudyActionResponse
 } from "./types";
 import { getUserId } from "./user-id";
@@ -34,10 +35,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       detail?.detail ?? `El servidor respondio con el estado ${response.status}.`
     );
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json() as Promise<T>;
 }
 
-export async function uploadStudyFiles(files: File[]): Promise<ProjectResponse> {
+export async function uploadStudyFiles(files: File[], projectId?: string): Promise<ProjectResponse> {
   const formData = new FormData();
 
   files.forEach((file) => {
@@ -45,9 +49,20 @@ export async function uploadStudyFiles(files: File[]): Promise<ProjectResponse> 
     formData.append("files", file, relativePath || file.name);
   });
 
-  return request<ProjectResponse>("/uploads", {
+  const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+  return request<ProjectResponse>(`/uploads${query}`, {
     method: "POST",
     body: formData
+  });
+}
+
+export async function getProject(projectId: string): Promise<ProjectResponse> {
+  return request<ProjectResponse>(`/uploads/${projectId}`);
+}
+
+export async function deleteDocument(projectId: string, documentId: string): Promise<ProjectResponse> {
+  return request<ProjectResponse>(`/uploads/${projectId}/documents/${documentId}`, {
+    method: "DELETE"
   });
 }
 
@@ -88,17 +103,31 @@ export async function generateQuiz(
 }
 
 export async function saveQuizAttempt(
+  projectId: string,
   topicIds: string[],
   score: number,
-  totalQuestions: number
+  totalQuestions: number,
+  questions: QuizQuestion[],
+  answers: number[]
 ): Promise<QuizAttempt> {
   return request<QuizAttempt>("/quiz/attempts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ topic_ids: topicIds, score, total_questions: totalQuestions })
+    body: JSON.stringify({
+      project_id: projectId,
+      topic_ids: topicIds,
+      score,
+      total_questions: totalQuestions,
+      questions,
+      answers
+    })
   });
 }
 
-export async function getQuizAttempts(): Promise<QuizAttempt[]> {
-  return request<QuizAttempt[]>("/quiz/attempts");
+export async function getQuizAttempts(projectId: string): Promise<QuizAttempt[]> {
+  return request<QuizAttempt[]>(`/quiz/attempts?project_id=${encodeURIComponent(projectId)}`);
+}
+
+export async function deleteQuizAttempt(attemptId: number): Promise<void> {
+  await request<void>(`/quiz/attempts/${attemptId}`, { method: "DELETE" });
 }

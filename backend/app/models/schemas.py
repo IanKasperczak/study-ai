@@ -144,18 +144,26 @@ class GenerateQuizResponse(BaseModel):
 
 
 class SaveQuizAttemptRequest(BaseModel):
+    project_id: str
     # Stored joined by commas into quiz_attempts.subtema_id (see quiz_store.py)
     # -- the column keeps its original single-id name/shape, but a quiz can
     # now span every topic selected in the sidebar, not just one Subtema.
     topic_ids: list[str]
     score: int
     total_questions: int
+    # Persisted so a graded attempt can be reopened for review (right/wrong
+    # answers, explanations) later without regenerating or retaking it.
+    questions: list[QuizQuestion] = Field(default_factory=list)
+    answers: list[int] = Field(default_factory=list)
 
 
 class QuizAttempt(BaseModel):
     id: int
     user_id: str
+    project_id: str
     subtema_id: str
     score: int
     total_questions: int
     created_at: str
+    questions: list[QuizQuestion] = Field(default_factory=list)
+    answers: list[int] = Field(default_factory=list)

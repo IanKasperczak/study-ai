@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, RotateCcw, X } from "lucide-react";
+import { MarkdownContent } from "@/components/markdown-content";
 import { computeQuizScore } from "@/lib/quiz-utils";
 import type { QuizSession } from "@/lib/types";
 
@@ -76,6 +77,10 @@ export function QuizModal({ open, session, onClose, onAnswer, onSubmit }: QuizMo
                         <Check size={15} className="shrink-0 text-emerald-300" />
                       ) : graded && isSelected ? (
                         <X size={15} className="shrink-0 text-red-300" />
+                      ) : isSelected ? (
+                        <span className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full border border-sky-300 bg-sky-300/20">
+                          <span className="h-1.5 w-1.5 rounded-full bg-sky-300" />
+                        </span>
                       ) : (
                         <span className="h-3.5 w-3.5 shrink-0 rounded-full border border-slate-600" />
                       )}
@@ -84,8 +89,11 @@ export function QuizModal({ open, session, onClose, onAnswer, onSubmit }: QuizMo
                   );
                 })}
               </div>
-              {graded ? (
-                <p className="mt-3 text-xs leading-5 text-slate-400">{question.explanation}</p>
+              {graded && question.explanation ? (
+                <MarkdownContent
+                  content={question.explanation}
+                  className="mt-3 text-xs leading-5 text-slate-400"
+                />
               ) : null}
             </div>
           ))}

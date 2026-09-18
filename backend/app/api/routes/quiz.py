@@ -60,13 +60,31 @@ def save_quiz_attempt(
 ) -> QuizAttempt:
     attempt = quiz_store.record_attempt(
         user_id=user_id,
+        project_id=request.project_id,
         subtema_id=",".join(request.topic_ids),
         score=request.score,
         total_questions=request.total_questions,
+        questions=[question.model_dump() for question in request.questions],
+        answers=request.answers,
     )
     return QuizAttempt(**attempt)
 
 
 @router.get("/attempts", response_model=list[QuizAttempt])
-def list_quiz_attempts(user_id: Annotated[str, Depends(get_user_id)]) -> list[QuizAttempt]:
-    return [QuizAttempt(**attempt) for attempt in quiz_store.list_attempts(user_id)]
+def list_quiz_attempts(
+    project_id: str,
+    user_id: Annotated[str, Depends(get_user_id)],
+) -> list[QuizAttempt]:
+    # Scoped by project so switching documents doesn't mix history/retakes
+    # across unrelated material.
+    return [QuizAttempt(**attempt) for attempt in quiz_store.list_attempts(user_id, project_id)]
+
+
+@router.delete("/attempts/{attempt_id}", status_code=204)
+def delete_quiz_attempt(
+    attempt_id: int,
+    user_id: Annotated[str, Depends(get_user_id)],
+) -> None:
+    deleted = quiz_store.delete_attempt(user_id, attempt_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Attempt not found.")

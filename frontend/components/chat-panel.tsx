@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { Loader2, SendHorizontal } from "lucide-react";
+import { MarkdownContent } from "@/components/markdown-content";
 import { askContextualChat } from "@/lib/api";
 import type { ChatMessage } from "@/lib/types";
 
@@ -68,7 +69,11 @@ export function ChatPanel({ projectId, selectedTopicIds }: ChatPanelProps) {
                   : "border-slate-800 bg-slate-950/55 text-slate-200"
               }`}
             >
-              <p className="whitespace-pre-line">{message.content}</p>
+              {message.role === "assistant" ? (
+                <MarkdownContent content={message.content} className="text-sm leading-6" />
+              ) : (
+                <p className="whitespace-pre-line">{message.content}</p>
+              )}
               {message.sources?.length ? (
                 <div className="mt-3 space-y-2 border-t border-slate-800 pt-3 text-xs text-slate-400">
                   {message.sources.map((source) => (

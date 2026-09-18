@@ -12,6 +12,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import type { DocumentFile, Topic } from "@/lib/types";
 
 type TopicNode = Topic & { children: TopicNode[] };
@@ -22,6 +23,7 @@ type TopicSidebarProps = {
   selectedTopicIds: string[];
   onToggleTopics: (topicIds: string[]) => void;
   onSelectAll: () => void;
+  onDeleteDocument: (documentId: string) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
   footer?: ReactNode;
@@ -64,6 +66,7 @@ export function TopicSidebar({
   selectedTopicIds,
   onToggleTopics,
   onSelectAll,
+  onDeleteDocument,
   collapsed,
   onToggleCollapsed,
   footer
@@ -186,6 +189,10 @@ export function TopicSidebar({
                       {doc.filename}
                     </span>
                   </button>
+                  <ConfirmDeleteButton
+                    onConfirm={() => onDeleteDocument(doc.id)}
+                    label={`Borrar ${doc.filename}`}
+                  />
                 </div>
 
                 {docExpanded ? (

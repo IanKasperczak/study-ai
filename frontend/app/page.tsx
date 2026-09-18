@@ -9,8 +9,15 @@ import { StarfieldBackground } from "@/components/starfield-background";
 import { StudyActions } from "@/components/study-actions";
 import { ToolsPanel } from "@/components/tools-panel";
 import { TopicSidebar } from "@/components/topic-sidebar";
-import { generateQuiz, getQuizAttempts, saveQuizAttempt } from "@/lib/api";
-import { useLocalStore, writeLocalStore } from "@/lib/local-store";
+import {
+  deleteDocument,
+  deleteQuizAttempt,
+  generateQuiz,
+  getProject,
+  getQuizAttempts,
+  saveQuizAttempt
+} from "@/lib/api";
+import { readLocalStore, useLocalStore, writeLocalStore } from "@/lib/local-store";
 import { computeQuizScore } from "@/lib/quiz-utils";
 import type {
   ProjectResponse,
@@ -23,6 +30,7 @@ import { useEffect, useMemo, useState } from "react";
 
 const SIDEBAR_COLLAPSED_KEY = "study-ia-sidebar-collapsed";
 const TOOLS_COLLAPSED_KEY = "study-ia-tools-collapsed";
+const PROJECT_ID_KEY = "study_ai_project_id";
 
 // Tailwind's JIT scanner needs full literal class names in source, so the
 // four collapse combinations are spelled out instead of built dynamically.
@@ -49,13 +57,30 @@ export default function HomePage() {
   const sidebarCollapsed = useLocalStore(SIDEBAR_COLLAPSED_KEY, false);
   const toolsCollapsed = useLocalStore(TOOLS_COLLAPSED_KEY, true);
 
+  // Restore the last project on load -- otherwise a page refresh looked
+  // exactly like the uploaded material had been erased, even though it was
+  // still sitting in the backend the whole time.
   useEffect(() => {
-    getQuizAttempts()
+    const savedProjectId = readLocalStore<string | null>(PROJECT_ID_KEY, null);
+    if (!savedProjectId) return;
+
+    getProject(savedProjectId)
+      .then(handleProjectReady)
+      .catch(() => {
+        // Project no longer exists on the backend (e.g. an ephemeral-storage
+        // reset) -- drop the stale reference instead of retrying forever.
+        writeLocalStore(PROJECT_ID_KEY, null);
+      });
+  }, []);
+
+  useEffect(() => {
+    if (!projectId) return;
+    getQuizAttempts(projectId)
       .then(setQuizAttempts)
       .catch(() => {
         // History is a nice-to-have; a failed fetch shouldn't block the quiz itself.
       });
-  }, []);
+  }, [projectId]);
 
   const selectedTopicsLabel = useMemo(() => {
     if (!selectedTopicIds.length) return "Sin seleccion";
@@ -69,6 +94,18 @@ export default function HomePage() {
     setProjectId(project.project_id);
     setTopics(project.topics);
     setSelectedTopicIds(project.topics.map((topic) => topic.id));
+    setLastProject(project);
+    writeLocalStore(PROJECT_ID_KEY, project.project_id);
+  }
+
+  async function handleDeleteDocument(documentId: string) {
+    if (!projectId) return;
+    const project = await deleteDocument(projectId, documentId);
+    setTopics(project.topics);
+    setSelectedTopicIds((current) => {
+      const remaining = new Set(project.topics.map((topic) => topic.id));
+      return current.filter((id) => remaining.has(id));
+    });
     setLastProject(project);
   }
 
@@ -122,16 +159,48 @@ export default function HomePage() {
   }
 
   async function submitQuiz() {
-    if (!quizSession) return;
+    if (!quizSession || !projectId) return;
     const score = computeQuizScore(quizSession);
     setQuizSession({ ...quizSession, graded: true });
 
     try {
-      const attempt = await saveQuizAttempt(quizSession.topicIds, score, quizSession.questions.length);
+      const attempt = await saveQuizAttempt(
+        projectId,
+        quizSession.topicIds,
+        score,
+        quizSession.questions.length,
+        quizSession.questions,
+        quizSession.answers
+      );
       setQuizAttempts((current) => [attempt, ...current]);
     } catch {
       // The graded view is already shown locally; losing history on a failed
       // save isn't worth blocking or confusing the user with an error here.
+    }
+  }
+
+  // Reopens a past graded attempt exactly as it was answered, so the user
+  // can see what they got right/wrong without regenerating or retaking it.
+  function reviewAttempt(attempt: QuizAttempt) {
+    if (!attempt.questions.length) return;
+    setQuizSession({
+      topicIds: attempt.subtema_id.split(",").filter(Boolean),
+      questions: attempt.questions,
+      answers: attempt.answers,
+      graded: true
+    });
+    setIsQuizModalOpen(true);
+  }
+
+  async function removeQuizAttempt(attemptId: number) {
+    setQuizAttempts((current) => current.filter((attempt) => attempt.id !== attemptId));
+    try {
+      await deleteQuizAttempt(attemptId);
+    } catch {
+      // Refetch to reconcile if the delete didn't actually happen server-side.
+      if (projectId) {
+        getQuizAttempts(projectId).then(setQuizAttempts).catch(() => {});
+      }
     }
   }
 
@@ -148,9 +217,12 @@ export default function HomePage() {
           selectedTopicIds={selectedTopicIds}
           onToggleTopics={toggleTopics}
           onSelectAll={selectAllTopics}
+          onDeleteDocument={handleDeleteDocument}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => writeLocalStore(SIDEBAR_COLLAPSED_KEY, !sidebarCollapsed)}
-          footer={<FileUploader onProjectReady={handleProjectReady} />}
+          footer={
+            <FileUploader onProjectReady={handleProjectReady} currentProjectId={projectId} />
+          }
         />
 
         <motion.section
@@ -199,6 +271,8 @@ export default function HomePage() {
           quizAttempts={quizAttempts}
           onStartQuiz={startQuiz}
           onResumeQuiz={() => setIsQuizModalOpen(true)}
+          onDeleteAttempt={removeQuizAttempt}
+          onReviewAttempt={reviewAttempt}
         />
       </div>
 

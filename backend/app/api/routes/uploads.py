@@ -34,6 +34,23 @@ async def upload_files(
     if not files:
         raise HTTPException(status_code=400, detail="No se recibieron archivos.")
 
+    max_bytes = int(settings.max_upload_mb * 1024 * 1024)
+    file_bytes: list[bytes] = []
+    total_bytes = 0
+    for file in files:
+        content = await file.read()
+        total_bytes += len(content)
+        file_bytes.append(content)
+    if total_bytes > max_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Los archivos pesan {total_bytes / (1024 * 1024):.1f} MB en total, "
+                f"el limite es {settings.max_upload_mb:.0f} MB (podes subir un archivo "
+                "mas chico o varios que sumados no lo superen)."
+            ),
+        )
+
     project = study_store.get_project(project_id) if project_id else None
     if project_id and project is None:
         raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
@@ -50,7 +67,7 @@ async def upload_files(
     # topic-refinement call can take seconds, so those run concurrently below
     # instead of blocking one upload request behind another.
     pending: list[tuple[Path, str, str, str]] = []
-    for file in files:
+    for file, content in zip(files, file_bytes):
         original_name = file.filename or "untitled"
         suffix = Path(original_name).suffix.lower()
 
@@ -68,7 +85,7 @@ async def upload_files(
         upload_dir = settings.upload_dir / project_id
         upload_dir.mkdir(parents=True, exist_ok=True)
         saved_path = upload_dir / f"{uuid4().hex}_{safe_name}"
-        saved_path.write_bytes(await file.read())
+        saved_path.write_bytes(content)
         pending.append((saved_path, suffix, original_name, file.content_type or "unknown"))
 
     results = await asyncio.gather(
@@ -94,6 +111,36 @@ async def upload_files(
     study_store.add_chunks(project_id, new_chunks)
 
     project = study_store.get_project(project_id)
+    return _to_response(project)
+
+
+@router.get("/{project_id}", response_model=ProjectResponse)
+def get_project(
+    project_id: str,
+    user_id: Annotated[str, Depends(get_user_id)],
+) -> ProjectResponse:
+    """Restore a previously loaded project (the frontend calls this on page
+    load using the project_id it kept in localStorage) so a reload doesn't
+    look like the uploaded material got wiped."""
+    project = study_store.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
+    return _to_response(project)
+
+
+@router.delete("/{project_id}/documents/{document_id}", response_model=ProjectResponse)
+def delete_document(
+    project_id: str,
+    document_id: str,
+    user_id: Annotated[str, Depends(get_user_id)],
+) -> ProjectResponse:
+    """Remove one uploaded document and everything derived from it (its
+    topics and chunks), so starting a new subject doesn't mix with old
+    material still selected in the sidebar."""
+    try:
+        project = study_store.remove_document(project_id, document_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado.")
     return _to_response(project)
 
 

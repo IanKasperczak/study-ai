@@ -50,6 +50,7 @@ class Settings:
     nim_embed_model: str
     ai_provider: str
     ai_timeout_seconds: float
+    max_upload_mb: float
 
 
 @lru_cache
@@ -88,4 +89,5 @@ def get_settings() -> Settings:
         nim_embed_model=os.getenv("NIM_EMBED_MODEL", "nvidia/nv-embedqa-e5-v5"),
         ai_provider=os.getenv("AI_PROVIDER", "").lower(),
         ai_timeout_seconds=float(os.getenv("AI_TIMEOUT_SECONDS", "300") or 300),
+        max_upload_mb=float(os.getenv("MAX_UPLOAD_MB", "20") or 20),
     )

@@ -26,6 +26,8 @@ type ToolsPanelProps = {
   quizAttempts: QuizAttempt[];
   onStartQuiz: (topicIds: string[]) => void;
   onResumeQuiz: () => void;
+  onDeleteAttempt: (attemptId: number) => void;
+  onReviewAttempt: (attempt: QuizAttempt) => void;
 };
 
 const PLACEHOLDER_TOOLS = [
@@ -53,7 +55,9 @@ export function ToolsPanel({
   quizError,
   quizAttempts,
   onStartQuiz,
-  onResumeQuiz
+  onResumeQuiz,
+  onDeleteAttempt,
+  onReviewAttempt
 }: ToolsPanelProps) {
   if (collapsed) {
     return (
@@ -156,6 +160,8 @@ export function ToolsPanel({
                 attempts={quizAttempts}
                 isGenerating={isGeneratingQuiz}
                 onRetake={onStartQuiz}
+                onDelete={onDeleteAttempt}
+                onReview={onReviewAttempt}
               />
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
-import { HelpCircle, Loader2, RotateCcw } from "lucide-react";
+import { Eye, HelpCircle, Loader2, RotateCcw } from "lucide-react";
+import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
 import type { QuizAttempt, QuizSession, Topic } from "@/lib/types";
 
 type QuizPanelProps = {
@@ -84,9 +85,19 @@ type QuizHistoryProps = {
   attempts: QuizAttempt[];
   isGenerating: boolean;
   onRetake: (topicIds: string[]) => void;
+  onDelete: (attemptId: number) => void;
+  onReview: (attempt: QuizAttempt) => void;
 };
 
-export function QuizHistory({ projectId, topics, attempts, isGenerating, onRetake }: QuizHistoryProps) {
+export function QuizHistory({
+  projectId,
+  topics,
+  attempts,
+  isGenerating,
+  onRetake,
+  onDelete,
+  onReview
+}: QuizHistoryProps) {
   if (!attempts.length) return null;
 
   function topicLabel(topicIdList: string): string {
@@ -103,10 +114,20 @@ export function QuizHistory({ projectId, topics, attempts, isGenerating, onRetak
           className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/30 px-2.5 py-1.5 text-xs"
         >
           <span className="min-w-0 truncate text-slate-300">{topicLabel(attempt.subtema_id)}</span>
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="font-medium text-slate-200">
+          <div className="flex shrink-0 items-center gap-1">
+            <span className="mr-1 font-medium text-slate-200">
               {attempt.score}/{attempt.total_questions}
             </span>
+            {attempt.questions.length ? (
+              <button
+                type="button"
+                onClick={() => onReview(attempt)}
+                className="grid h-6 w-6 shrink-0 place-items-center rounded text-slate-500 transition hover:text-emerald-300"
+                aria-label="Ver correccion"
+              >
+                <Eye size={13} />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => onRetake(attempt.subtema_id.split(",").filter(Boolean))}
@@ -116,6 +137,11 @@ export function QuizHistory({ projectId, topics, attempts, isGenerating, onRetak
             >
               <RotateCcw size={13} />
             </button>
+            <ConfirmDeleteButton
+              onConfirm={() => onDelete(attempt.id)}
+              label="Borrar del historial"
+              size={13}
+            />
           </div>
         </div>
       ))}

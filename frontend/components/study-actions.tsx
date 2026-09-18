@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { BookMarked, Loader2, Sparkles } from "lucide-react";
+import { BookMarked, FileDown, FileText, Loader2, Sparkles } from "lucide-react";
+import { MarkdownContent } from "@/components/markdown-content";
 import { generateStudyAction } from "@/lib/api";
+import { downloadAsDocx, downloadAsPdf } from "@/lib/markdown-export";
 import type { StudyActionResponse } from "@/lib/types";
 
 type StudyActionsProps = {
@@ -85,12 +87,30 @@ export function StudyActions({ projectId, selectedTopicIds, onResult }: StudyAct
 
       {result ? (
         <article className="mt-4 rounded-lg border border-slate-800 bg-slate-950/45 p-4">
-          <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-200">
-            {result.title}
-          </h3>
-          <p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-200">
-            {result.content}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-200">
+              {result.title}
+            </h3>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => downloadAsPdf(result.title, result.content)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-700 px-2 text-xs text-slate-300 transition hover:border-sky-300/50 hover:text-sky-100"
+              >
+                <FileText size={12} />
+                PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadAsDocx(result.title, result.content)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-slate-700 px-2 text-xs text-slate-300 transition hover:border-sky-300/50 hover:text-sky-100"
+              >
+                <FileDown size={12} />
+                DOCX
+              </button>
+            </div>
+          </div>
+          <MarkdownContent content={result.content} className="mt-3 text-sm leading-7 text-slate-200" />
         </article>
       ) : null}
     </section>

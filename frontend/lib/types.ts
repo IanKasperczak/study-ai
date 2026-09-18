@@ -64,12 +64,17 @@ export type GenerateQuizResponse = {
 export type QuizAttempt = {
   id: number;
   user_id: string;
+  project_id: string;
   // Comma-joined topic ids (a quiz can span every topic selected in the
   // sidebar, not just one Subtema) -- split on "," to resolve titles.
   subtema_id: string;
   score: number;
   total_questions: number;
   created_at: string;
+  // Full snapshot of the graded quiz, so history can reopen it for review
+  // (right/wrong answers, explanations) without retaking it.
+  questions: QuizQuestion[];
+  answers: number[];
 };
 
 export type QuizSession = {

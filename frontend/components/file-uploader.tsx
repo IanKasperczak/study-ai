@@ -5,11 +5,18 @@ import { FileUp, FolderOpen, Loader2 } from "lucide-react";
 import { uploadStudyFiles } from "@/lib/api";
 import type { ProjectResponse } from "@/lib/types";
 
+// Mirrors the backend's MAX_UPLOAD_MB default (see backend/.env.example) so
+// oversized selections get rejected instantly instead of after a slow
+// upload. The backend re-checks regardless -- this is just a fast, friendly
+// client-side guard, not the source of truth.
+const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_UPLOAD_MB ?? "20");
+
 type FileUploaderProps = {
   onProjectReady: (project: ProjectResponse) => void;
+  currentProjectId?: string | null;
 };
 
-export function FileUploader({ onProjectReady }: FileUploaderProps) {
+export function FileUploader({ onProjectReady, currentProjectId }: FileUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -30,11 +37,22 @@ export function FileUploader({ onProjectReady }: FileUploaderProps) {
 
     if (!selectedFiles.length) return;
 
+    const totalMb = selectedFiles.reduce((sum, file) => sum + file.size, 0) / (1024 * 1024);
+    if (totalMb > MAX_UPLOAD_MB) {
+      setError(
+        `Los archivos pesan ${totalMb.toFixed(1)} MB en total, el limite es ${MAX_UPLOAD_MB} MB ` +
+          "(un archivo mas chico o varios que sumados no lo superen)."
+      );
+      return;
+    }
+
     setIsUploading(true);
     setError(null);
 
     try {
-      const project = await uploadStudyFiles(selectedFiles);
+      // Adds to the currently loaded project when there is one, instead of
+      // silently abandoning it in a new, unreferenced project every time.
+      const project = await uploadStudyFiles(selectedFiles, currentProjectId ?? undefined);
       onProjectReady(project);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudieron procesar los archivos.");
